@@ -1,0 +1,8 @@
+# ignore all weights file as they are enormous
+*.weights
+
+
+
+
+# ignore all data as there are too many images
+darknet/data/*
