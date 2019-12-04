@@ -10,10 +10,11 @@
             "request": "launch",
             "program": "${file}",
             "args":[
-                "--images", "YOFO\\dog-cycle-car.png",
+                "--images", "dog-cycle-car.png",
                 "--det", "det"
             ],
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "cwd": "${fileDirname}"
         }
     ]
 }
