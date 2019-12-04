@@ -6,3 +6,7 @@
 
 # ignore all data as there are too many images
 darknet/data/*
+
+
+# Ignore data
+data/
