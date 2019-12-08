@@ -4,3 +4,6 @@
 [submodule "labelimg"]
 	path = labelimg
 	url = https://github.com/tzutalin/labelimg
+[submodule "project_thesis"]
+	path = project_thesis
+	url = https://github.com/hersta/project_thesis
