@@ -174,7 +174,7 @@ class Darknet(nn.Module):
     def get_module_list(self):
         return self.module_list
 
-    def forward(self, x, CUDA):
+    def forward(self, x, CUDA, layer):
         modules = self.blocks[1:]
         outputs = {}   #We cache the outputs for the route layer
         
@@ -183,9 +183,7 @@ class Darknet(nn.Module):
             module_type = (module["type"])
             
 
-            if  i == 81:
-                return x
-                print("hi")
+           
             if module_type == "convolutional" or module_type == "upsample":
                 x = self.module_list[i](x)
     
@@ -229,9 +227,10 @@ class Darknet(nn.Module):
         
                 else:       
                     detections = torch.cat((detections, x), 1)
-        
+            
             outputs[i] = x
-        
+            if  i == layer:
+                return x
         return detections
 
 

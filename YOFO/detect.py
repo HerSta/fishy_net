@@ -114,27 +114,49 @@ write = 0
 
 
 import matplotlib.pyplot as plt
-    
+from scipy.interpolate import interp1d
+
 start_det_loop = time.time()
 for i, batch in enumerate(im_batches):
-#load the image 
     start = time.time()
 
-    with torch.no_grad():
-        prediction = model(Variable(batch), False)
+    for l in range(0,1):
+        with torch.no_grad():
+            prediction = model(Variable(batch), False, l)
 
-    print(prediction)
+        for pred in prediction:
+            for idx,image in enumerate(pred):
+                #if idx == 0:
+                 #   continue
+                #if idx == 2:
+                #    break
+                
+                if idx == 1:
+                    break                   
+
+                #normalizer = interp1d([image.min(),image.max()], [0,1])
+
+                plt.imshow(image, cmap="viridis")
 
 
-    for pred in prediction:
-        for idx,image in enumerate(pred):
-            if idx == 8:
-                break
-            plt.imshow(image)
-            plt.axis('off')
-            plt.savefig("C:\\Users\\peterhs\\Dropbox\\Apper\\Overleaf\\Project_thesis\\figures\\internal_yolo\\layer_last_" + str(idx), bbox_inches="tight")
-            
-            #plt.show()
+        plt.axis('off') #removes the numbers around the image
+        plt.savefig("C:\\Users\\peterhs\\Dropbox\\Apper\\Overleaf\\Project_thesis\\figures\\internal_yolo\\layer" + str(l+1) +"_first" + str(idx), pad_inches=0, bbox_inches="tight")
+
+
+def remove_topbot(img):
+    img_h = img.shape[1]
+
+    # these numbers come from the original image which is not quadratic
+    percent_to_remove = 91 / 416
+
+    lower = int(percent_to_remove * img_h)
+    upper = int((1 - percent_to_remove) * img_h)
+
+    #for default = 91, 325
+
+    img = img[lower:upper,:]
+    return img
+
 
 #   prediction = write_results(prediction, confidence, num_classes, nms_conf = nms_thesh)
 #
