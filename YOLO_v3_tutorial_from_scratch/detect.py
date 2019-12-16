@@ -115,118 +115,32 @@ write = 0
 
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
-from sklearn.decomposition import PCA
-
-def PCA2(data, k=2):
- # preprocess the data
-    X = data
-    X_mean = torch.mean(X,0)
-    X = X - X_mean.expand_as(X)
-
-    # svd
-    U,S,V = torch.svd(torch.t(X))
-    return torch.mm(X,U[:,:k])
-
-def comp_2d(image_2d): # FUNCTION FOR RECONSTRUCTING 2D MATRIX USING PCA
-	cov_mat = image_2d - np.mean(image_2d , axis = 1)
-	eig_val, eig_vec = np.linalg.eigh(np.cov(cov_mat)) # USING "eigh", SO THAT PROPRTIES OF HERMITIAN MATRIX CAN BE USED
-	p = np.size(eig_vec, axis =1)
-	idx = np.argsort(eig_val)
-	idx = idx[::-1]
-	eig_vec = eig_vec[:,idx]
-	eig_val = eig_val[idx]
-	numpc = 100 # THIS IS NUMBER OF PRINCIPAL COMPONENTS, YOU CAN CHANGE IT AND SEE RESULTS
-	if numpc <p or numpc >0:
-		eig_vec = eig_vec[:, range(numpc)]
-	score = np.dot(eig_vec.T, cov_mat)
-	recon = np.dot(eig_vec, score) + np.mean(image_2d, axis = 1).T # SOME NORMALIZATION CAN BE USED TO MAKE IMAGE QUALITY BETTER
-	recon_img_mat = np.uint8(np.absolute(recon)) # TO CONTROL COMPLEX EIGENVALUES
-	return recon_img_mat
-
 
 start_det_loop = time.time()
 for i, batch in enumerate(im_batches):
     start = time.time()
 
-    for l in range(96,106):
-        if l == 83 or l == 84 or l==94 or l == 95 or l == 107:
-            continue
-
-
-
+    for l in range(0,82):
         with torch.no_grad():
             prediction = model(Variable(batch), False, l)
 
+        for pred in prediction:
+            for idx,image in enumerate(pred):
+                if idx == 0:
+                    continue
+                if idx == 2:
+                    break
+                
+                #if idx == 1:
+                #    break                   
 
-             
-            images = prediction.squeeze().data.numpy()[:,:,:]
-            depth = images.shape[0]
+                #normalizer = interp1d([image.min(),image.max()], [0,1])
 
-            width = images.shape[1]
-            height = images.shape[2]
-
-
-            #plt.imshow(images[1])
-            #plt.show()
-#           comp = comp_2d(images[1])
-#           plt.imshow(comp)
-#           plt.show()
-
+                plt.imshow(image, cmap="viridis")
 
 
-            #images = np.swapaxes(images, 0, 1)
-            #images = np.swapaxes(images, 1, 2)
-            #plt.imshow(images[1], cmap="viridis")
-
-
-            #combined_img = np.zeros((416, 416))
-            #for z in range(32):
-            #     combined_img += images[z]
-
-            #plt.imshow(combined_img)
-            #plt.show()
-
-            images = images.reshape(width*height, depth)
-
-            n_comp = 5
-
-            pca = PCA(n_components=n_comp)
-
-            test = pca.fit_transform(images)
-            var_r = pca.explained_variance_ratio_
-
-
-            fig = plt.figure()
-
-            plt.bar([1, 2, 3, 4, 5], [var_r[0],var_r[1],var_r[2],var_r[3],var_r[4]])
-            ax = plt.axes()
-            ax.set_ylabel("Variance Ratio")
-            ax.set_xlabel("Principal Component")
-            #plt.imshow(test)
-            #plt.show()
-
-            plt.savefig("C:\\Users\\peterhs\\Dropbox\\Apper\\Overleaf\\Project_thesis\\figures\\internal_yolo\\traveling_through\\layer_pca_" + str(l+1) + "_" + str(0), pad_inches=0, bbox_inches="tight")
-            print("hi")
-
-
-
-       # for pred in prediction:
-       #     for idx,image in enumerate(pred):
-       #         if idx == 0:
-       #             continue
-       #         if idx == 2:
-       #             break
-       #                           
-
-       #         #normalizer = interp1d([image.min(),image.max()], [0,1])
-       #         try:
-       #             plt.imshow(image, cmap="viridis")
-       #         except:
-       #             print("error at layer: " + str(l+1))
-
-
-       # plt.axis('off') #removes the numbers around the image
-       # plt.savefig("C:\\Users\\peterhs\\Dropbox\\Apper\\Overleaf\\Project_thesis\\figures\\internal_yolo\\traveling_through\\layer_pca_" + str(l+1) + "_" + str(0), pad_inches=0, bbox_inches="tight")
+        plt.axis('off') #removes the numbers around the image
+        plt.savefig("C:\\Users\\peterhs\\Dropbox\\Apper\\Overleaf\\Project_thesis\\figures\\internal_yolo\\layer" + str(l+1) +"_first" + str(idx), pad_inches=0, bbox_inches="tight")
 
 
 def remove_topbot(img):
