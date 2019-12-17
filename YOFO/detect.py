@@ -148,7 +148,7 @@ start_det_loop = time.time()
 for i, batch in enumerate(im_batches):
     start = time.time()
 
-    for l in range(96,106):
+    for l in range(0,82):
         if l == 83 or l == 84 or l==94 or l == 95 or l == 107:
             continue
 
@@ -160,54 +160,62 @@ for i, batch in enumerate(im_batches):
 
              
             images = prediction.squeeze().data.numpy()[:,:,:]
-            depth = images.shape[0]
+            
+            # READ DIMENSIONS OF IMAGE
+            #print("Original images shape: " + str(images.shape))
+            depth,width, height = images.shape[0], images.shape[1], images.shape[2]
 
-            width = images.shape[1]
-            height = images.shape[2]
-
-
-            #plt.imshow(images[1])
-            #plt.show()
-#           comp = comp_2d(images[1])
-#           plt.imshow(comp)
-#           plt.show()
+            # SWAP AXIS FROM 32,416,416 TO 416,416,32
+            images = np.swapaxes(images, 0, 1)
+            images = np.swapaxes(images, 1, 2)
 
 
 
-            #images = np.swapaxes(images, 0, 1)
-            #images = np.swapaxes(images, 1, 2)
-            #plt.imshow(images[1], cmap="viridis")
+            # Reshaping images into array (416,416,32) becomes (416*416,32)
+            images = images.reshape((width*height, depth), order="C")
+            print("Reshaped images shape: " + str(images.shape))
 
-
-            #combined_img = np.zeros((416, 416))
-            #for z in range(32):
-            #     combined_img += images[z]
-
-            #plt.imshow(combined_img)
+            #img_to_plot = np.reshape(images, (width, height, depth))
+            #plt.imshow(img_to_plot[:,:,0])
             #plt.show()
 
-            images = images.reshape(width*height, depth)
 
-            n_comp = 5
+            # as we scale down the layers become deeper than the width/height of the images
+            # producing more eigenvalues than measures
+           
 
-            pca = PCA(n_components=n_comp)
+            pca = PCA()
 
-            test = pca.fit_transform(images)
-            var_r = pca.explained_variance_ratio_
+            score  = pca.fit_transform(images)
 
-
-            fig = plt.figure()
-
-            plt.bar([1, 2, 3, 4, 5], [var_r[0],var_r[1],var_r[2],var_r[3],var_r[4]])
-            ax = plt.axes()
-            ax.set_ylabel("Variance Ratio")
-            ax.set_xlabel("Principal Component")
-            #plt.imshow(test)
+            #print("score shape: " + str(score.shape))
+            if depth > width*height:
+                depth = max(width, height)
+                phi = np.reshape(score, (height, width, depth*depth), order="C")
+            else:
+                phi = np.reshape(score, (height, width, depth), order="C")
+            #plt.imshow(phi[:,:,0])
             #plt.show()
-
-            plt.savefig("C:\\Users\\peterhs\\Dropbox\\Apper\\Overleaf\\Project_thesis\\figures\\internal_yolo\\traveling_through\\layer_pca_" + str(l+1) + "_" + str(0), pad_inches=0, bbox_inches="tight")
+            #print("phi shape: " + str(phi.shape))
+            for p in range(2):
+                plt.imshow(np.real(phi[:,:,p]))
+                plt.axis("off")
+                #plt.show()
+                plt.savefig("C:\\Users\\peterhs\\Dropbox\\Apper\\Overleaf\\Project_thesis\\figures\\internal_yolo\\traveling_through\\layer_backup_pca_img_" + str(l+1) + "_" + str(p), pad_inches=0, bbox_inches="tight")
             print("hi")
 
+        
+        
+        
+        #var_r = pca.explained_variance_ratio_
+      #img = score.reshape((416,416), order="C")
+
+            #fig = plt.figure()
+
+            #plt.bar([1, 2, 3, 4, 5], [var_r[0],var_r[1],var_r[2],var_r[3],var_r[4]])
+            #ax = plt.axes()
+            #ax.set_ylabel("Variance Ratio")
+            #ax.set_xlabel("Principal Component")
 
 
        # for pred in prediction:
