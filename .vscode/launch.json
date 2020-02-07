@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "args":[
-                "--images", "fish.jpg"
+               // "--images", "fish.jpg"
             ],
             "console": "integratedTerminal",
             "cwd": "${fileDirname}"

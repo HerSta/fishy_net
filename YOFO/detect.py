@@ -148,7 +148,7 @@ start_det_loop = time.time()
 for i, batch in enumerate(im_batches):
     start = time.time()
 
-    for l in range(0,82):
+    for l in range(85,95):
         if l == 83 or l == 84 or l==94 or l == 95 or l == 107:
             continue
 
@@ -189,52 +189,57 @@ for i, batch in enumerate(im_batches):
             score  = pca.fit_transform(images)
 
             #print("score shape: " + str(score.shape))
-            if depth > width*height:
-                depth = max(width, height)
-                phi = np.reshape(score, (height, width, depth*depth), order="C")
-            else:
-                phi = np.reshape(score, (height, width, depth), order="C")
+            #if depth > width*height:
+            #    depth = max(width, height)
+            #    phi = np.reshape(score, (height, width, depth*depth), order="C")
+            #else:
+            #    phi = np.reshape(score, (height, width, depth), order="C")
             #plt.imshow(phi[:,:,0])
             #plt.show()
             #print("phi shape: " + str(phi.shape))
-            for p in range(2):
-                plt.imshow(np.real(phi[:,:,p]))
-                plt.axis("off")
-                #plt.show()
-                plt.savefig("C:\\Users\\peterhs\\Dropbox\\Apper\\Overleaf\\Project_thesis\\figures\\internal_yolo\\traveling_through\\layer_backup_pca_img_" + str(l+1) + "_" + str(p), pad_inches=0, bbox_inches="tight")
-            print("hi")
+            
+            
+            
+            #for p in range(2):
+            #    plt.imshow(np.real(phi[:,:,p]))
+            #    plt.axis("off")
+            #    #plt.show()
+            #    plt.savefig("C:\\Users\\peterhs\\Dropbox\\Apper\\Overleaf\\Project_thesis\\figures\\internal_yolo\\traveling_through\\layer_backup_pca_img_" + str(l+1) + "_" + str(p), pad_inches=0, bbox_inches="tight")
+            #print("hi")
 
         
         
         
-        #var_r = pca.explained_variance_ratio_
-      #img = score.reshape((416,416), order="C")
+            var_r = pca.explained_variance_ratio_
+            #img = score.reshape((416,416), order="C")
 
             #fig = plt.figure()
 
-            #plt.bar([1, 2, 3, 4, 5], [var_r[0],var_r[1],var_r[2],var_r[3],var_r[4]])
-            #ax = plt.axes()
-            #ax.set_ylabel("Variance Ratio")
-            #ax.set_xlabel("Principal Component")
+            plt.bar([1, 2, 3, 4, 5], [var_r[0],var_r[1],var_r[2],var_r[3],var_r[4]])
+            ax = plt.axes()
+            ax.set_ylabel("Variance Ratio")
+            ax.set_xlabel("Principal Component")
+
+        plt.savefig("C:\\Users\\peterhs\\tmp\\layer_pca_" + str(l+1) + "_" + str(0), pad_inches=0, bbox_inches="tight")
+        plt.clf()
+            #plt.show()
+            # for pred in prediction:
+            #     for idx,image in enumerate(pred):
+            #         if idx == 0:
+            #             continue
+            #         if idx == 2:
+            #             break
+            #                           
+
+            #         #normalizer = interp1d([image.min(),image.max()], [0,1])
+            #         try:
+            #             plt.imshow(image, cmap="viridis")
+            #         except:
+            #             print("error at layer: " + str(l+1))
 
 
-       # for pred in prediction:
-       #     for idx,image in enumerate(pred):
-       #         if idx == 0:
-       #             continue
-       #         if idx == 2:
-       #             break
-       #                           
+            # plt.axis('off') #removes the numbers around the image
 
-       #         #normalizer = interp1d([image.min(),image.max()], [0,1])
-       #         try:
-       #             plt.imshow(image, cmap="viridis")
-       #         except:
-       #             print("error at layer: " + str(l+1))
-
-
-       # plt.axis('off') #removes the numbers around the image
-       # plt.savefig("C:\\Users\\peterhs\\Dropbox\\Apper\\Overleaf\\Project_thesis\\figures\\internal_yolo\\traveling_through\\layer_pca_" + str(l+1) + "_" + str(0), pad_inches=0, bbox_inches="tight")
 
 
 def remove_topbot(img):
