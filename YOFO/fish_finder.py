@@ -2,7 +2,8 @@ import cv2
 import glob
 import math
 import os
-
+from datetime import datetime
+from datetime import timedelta
 
 img_width = 1920
 img_height = 1080
@@ -19,34 +20,25 @@ def create_img_label_path_dict(path):
 def calculate_sonar_region():
     son_depth = 12 #meters
 
-    cam_fov = math.radians(100) 
+    cam_hfov = math.radians(92) 
     son_fov = math.radians(7)
     t_x = 0.1 # distance between sonar and camera
 
-    
-
-
-    R_o = (math.sin(cam_fov / 2) *(son_depth)) / (math.sin((math.pi / 2) - (cam_fov / 2)))
-    print(R_o)
-
-
+    x_o = 2*(math.sin(cam_hfov / 2) *(son_depth)) / (math.sin((math.pi / 2) - (cam_hfov / 2)))
+    print(x_o)
+    #y_0 = (I_y * x_o) / I_x
 
     R_s =  (math.sin(son_fov / 2) *(son_depth)) / (math.sin((math.pi / 2) - (son_fov / 2)))
-
-
 
     img_ratio = img_height / img_width
 
     cam_rect_a = img_ratio * img_width
 
-    # width of camera in world coordinates
-    y_o = 2 * R_o / math.sqrt(math.pow(I_x / I_y, 2) + 1)
-
     # Scaling factor between world and image
-    S = I_y / y_o
+    S = I_x / x_o
 
     # Image dimensions of sonar radius and offset
-    R_i_s = (R_s / R_o) * math.sqrt(math.pow(img_height,2) + math.pow(img_width,2))
+    R_i_s = R_s * S
     t_i_x = S * t_x
 
     print("Sonar radius in image: " + str(R_i_s))
@@ -61,7 +53,7 @@ def calculate_sonar_region():
 def transparent_circle(img,center,radius,color,thickness):
     center = tuple(map(int,center))
     rgb = [255*c for c in color[:3]] # convert to 0-255 scale for OpenCV
-    alpha = 0.1 
+    alpha = 0.2 
     radius = int(radius)
     if thickness > 0:
         pad = radius + 2 + thickness
@@ -100,7 +92,11 @@ def crop_img(img):
     return
 
 def display_labels(img, labels):
-   
+    """
+    img: one image
+    labels: labels connected to img
+
+    """
     # file format: The initial 0 correspond to the 0th class; fish. The next two numbers are the $(x,y)$ 
     # position of the center of the box while the last two numbers $(w,h)$ are the width and the height of the box relative to the image width and height.
     with open(labels) as fp:
@@ -128,7 +124,67 @@ def display_labels(img, labels):
     cv2.imshow("x", img)
     cv2.waitKey()
 
+def sonar_region_center(offset):
+    img_center_x = img_width // 2
+    img_center_y = img_height // 2
 
+    sonar_center_x = img_center_x + offset
+    sonar_center_y = img_center_y
+
+    center = Point(sonar_center_x,sonar_center_y)
+    return center
+
+
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+
+
+def find_fish_in_sonar_region(labels,radius, sonar_center):
+    number_of_fish = 0
+    timestamp = ""
+
+    with open(labels) as fp:
+            lines = fp.readlines()
+
+            for line in lines:
+                if line == "":
+                    break
+                    
+                c, x, y, w, h = [float(x) for x in line.split()]
+
+                center_x = int(x * img_width)
+                center_y = int(y * img_height)
+
+                box_center = (center_x, center_y)
+
+                # check if the center of the bounding box is within the sonar circle using x^2 + y^2 < r^2
+                if (math.pow(center_x - sonar_center.x,2) + (math.pow(center_y - sonar_center.y, 2))) < math.pow(radius, 2):
+                    number_of_fish += 1
+                    # if there actually is a fish we also want to get the timestamp
+                    labels_name = labels.rsplit("/", 1)
+                    timestamp = labels_name[1][:-4] #remove .txt 
+                    timestamp = correct_timestamp(timestamp)
+
+
+    if number_of_fish > 0:
+        return number_of_fish, timestamp
+    else:
+        return 
+
+
+def correct_timestamp(timestamp):
+    """
+    The filename and images contain different timestamps. I assume that the time written in the image is correct, while the filenames are wrong. There error
+    is either 26 or 27 seconds seemingly randomly.
+    """
+    error_seconds = 26
+    utc_time = datetime.strptime(timestamp, "%Y-%m-%d-%H-%M-%S")
+    utc_time = utc_time + timedelta(seconds=error_seconds)
+
+    return utc_time
 
 
 def main():
@@ -139,13 +195,32 @@ def main():
     imgs_labels_paths = create_img_label_path_dict(img_path)
 
     imgs = list(imgs_labels_paths.keys())
+    
+
+
+    # Calculate radius and offset of sonar region
+    R_i_s, t_i_x = calculate_sonar_region()
+    sonar_center = sonar_region_center(t_i_x)
+
+    # Store all images with their sonar regions
+    #for img_path in imgs:
+    #    mark_sonar_region(img_path, R_i_s, t_i_x)
+
+    # Find number of fish within the sonar region and their timestamps
+    number_of_images_with_fish_in_sonar_region = 0
+    for img_path, label_path in imgs_labels_paths.items():
+        #img = cv2.imread(img_path)
+        #display_labels(img, label_path)
+        result = find_fish_in_sonar_region(label_path, R_i_s, sonar_center)
+        if result != None:
+            number_of_images_with_fish_in_sonar_region += 1
+            print(result)
+    print(number_of_images_with_fish_in_sonar_region)
+
 
     #display_labels(cv2.imread(list(imgs_labels_paths.keys())[12]), list(imgs_labels_paths.values())[12])
     
-    R_i_s, t_i_x = calculate_sonar_region()
     
-    for img_path in imgs:
-        mark_sonar_region(img_path, R_i_s, t_i_x)
 
 
 
