@@ -2,6 +2,10 @@ import cv2
 import glob
 import math
 import os
+import operator
+import csv
+
+import matplotlib.pyplot as plt
 from datetime import datetime
 from datetime import timedelta
 
@@ -187,11 +191,77 @@ def correct_timestamp(timestamp):
     return utc_time
 
 
+def plot_singletargets():
+    times = []
+    depths = []
+
+    
+
+
+    with open ("data/fish_singletargets2.csv", "r") as file:
+        reader = csv.reader(file)
+        sortedlist = sorted(reader, key=operator.itemgetter(0), reverse=False)
+        count = 0
+        for row in sortedlist:
+            if row[0] == "Time":
+                continue
+            utc_time = row[0][11:]
+            #utc_time = datetime.strptime(utc_time,"%H:%M:%S")
+
+            times.append(utc_time)
+            depths.append(float(row[1]))
+
+    time_start = datetime.strptime(times[0], "%H:%M:%S")
+    time_end = datetime.strptime(times[-1], "%H:%M:%S")
+
+    total_seconds = (time_end - time_start).total_seconds()
+
+    all_times = []
+    all_depths = []
+    now = time_start
+    while now != time_end:
+        all_times.append(now.strftime("%H:%M:%S"))
+        all_depths.append(0)
+        now += timedelta(seconds=1)
+
+
+    # Remove all duplicate timesteps. These are made when detecting several fish simultaneously
+    count = 1
+    current_time = times[0]
+    for time in times[1:]:   
+        if time == current_time:
+            del times[count]
+            del depths[count]
+            
+            current_time = times[count-1]
+        else:
+            current_time = time
+            count += 1
+
+
+    all_count = 0
+    count = 0
+    for all_time in all_times:
+        if all_time == times[count]:
+            all_depths[all_count] = depths[count]
+            count += 1
+            all_count += 1
+        else:
+            all_count += 1
+
+    plt.plot(all_times, all_depths)
+    plt.xticks([time_start.strftime("%H:%M:%S"), all_times[round(len(all_times) / 2)],time_end.strftime("%H:%M:%S")])
+    plt.ylabel("Meters [m]")
+    plt.xlabel("Time [s]")
+    plt.show()
+
+
+
 def main():
     fish_root = os.getcwd()
 
     #relative path to images
-    img_path = "imgs/cam_with_labels/20190303/"
+    img_path = "data/cam_with_labels/20190303/"
     imgs_labels_paths = create_img_label_path_dict(img_path)
 
     imgs = list(imgs_labels_paths.keys())
@@ -227,4 +297,4 @@ def main():
     print("Done!")
 
 
-main()
+plot_singletargets()

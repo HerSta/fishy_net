@@ -80,7 +80,7 @@ class t9ek80:
         self.mode = -1
         self.cont = False
         
-        self.debug = self.getDebug();
+        self.debug = self.getDebug()
 
         # Get extra parameters...
         if len(argv) == 3:
@@ -494,8 +494,12 @@ class t9ek80:
                                 start = loop*self.itypeSize
                                 end = (loop*self.itypeSize)+self.itypeSize
                                 dta = self.finale_data[start:end]
-                                Payload.append(unpack("<"+self.itypeVal,self.finale_data[start:end]))
-                                
+                                try:
+                                    Payload.append(unpack("<"+self.itypeVal,self.finale_data[start:end]))
+                                except:
+                                    continue
+
+
                         if self.debug == 2:
                             for element in Payload:
                                 for elements in element:
