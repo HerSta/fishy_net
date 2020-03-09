@@ -11,33 +11,33 @@
     <Request> 
 
 		<!--Single Target Chirp detection  -->
-		<!--
+		
 		<type>SingleTargetChirp</type>
-		<req>TSDetectionChirp,ChannelID=?,Range=15,
-			MinTSValue=-80,
+		<req>TSDetectionChirp,ChannelID=?,
+			MinTSValue=-70,
 			LayerType=Surface,
-			RangeStart=1,
+			Range = 12,
+			RangeStart=0,
 			RangeBeforeTarget=0.15,
 			RangeAfterTarget=0.15,
 			MaxGainCompensation=3.0,
 			MaxPhasedeviation=25.0</req>
 		<res>h</res> 						--><!-- Get itterator or data -->
-		<!--<resi>dddddd2f1000f1000f1000i</resi>  -->  <!-- Itteration    -->
-		<!--<ress>12056</ress> 			-->	<!-- Bytes in Itteration -->
+		<resi>dddddd2f1000f1000f1000i</resi>  -->  <!-- Itteration    -->
+		<ress>12056</ress> 			-->	<!-- Bytes in Itteration -->
 
 
 	
 		
 		<!-- Single Target detection -->
-		<type>SingleTarget</type> 
-		<req>TSDetection,ChannelID=?,MinTSValue=-70,
-		LayerType=Surface,Range=15,RangeStart=0,
+		<!--<type>SingleTarget</type> 
+		<req>TSDetection,ChannelID=?,MinTSValue=-65,
+		LayerType=Surface,Range=12,RangeStart=0,
 		MinEcholength=0.8,MaxEcholength=1.8,
-		MaxGainCompensation=6.0,MaxPhasedeviation=50</req> 
+		MaxGainCompensation=3.0,MaxPhasedeviation=25</req> 
 		<res>h</res> 				-->			<!-- Get itterator or data -->
-		<resi>dddddd</resi> <!-- Itteration   these values are from ek80 manual output -->
-
-		<ress>48</ress> 					<!-- Bytes in Itteration -->
+		<!--<resi>dddddd</resi>--> <!-- Itteration   these values are from ek80 manual output -->
+		<!--<ress>48</ress> -->					<!-- Bytes in Itteration -->
 		
    </Request> 
 </Configuration> 
