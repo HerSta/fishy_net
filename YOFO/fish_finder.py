@@ -4,8 +4,12 @@ import math
 import os
 import operator
 import csv
+import pandas as pd
+
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator # to get integer labels
+import matplotlib.dates as mdates
 from datetime import datetime
 from datetime import timedelta
 
@@ -14,6 +18,9 @@ img_height = 1080
 
 I_x = 1920
 I_y = 1080
+
+save_plots = False
+show_plots = False
 
 def create_img_label_path_dict(path):
     img_names = [img for img in glob.glob(path + "*.jpg")]
@@ -26,7 +33,7 @@ def calculate_sonar_region():
 
     cam_hfov = math.radians(92) 
     son_fov = math.radians(7)
-    t_x = 0.1 # distance between sonar and camera
+    t_x = 0.2 # distance between sonar and camera
 
     x_o = 2*(math.sin(cam_hfov / 2) *(son_depth)) / (math.sin((math.pi / 2) - (cam_hfov / 2)))
     print(x_o)
@@ -147,8 +154,10 @@ class Point:
 
 
 def find_fish_in_sonar_region(labels,radius, sonar_center):
+    """
+    Return: number_of_fish, timestamp
+    """
     number_of_fish = 0
-    timestamp = ""
 
     with open(labels) as fp:
             lines = fp.readlines()
@@ -167,16 +176,16 @@ def find_fish_in_sonar_region(labels,radius, sonar_center):
                 # check if the center of the bounding box is within the sonar circle using x^2 + y^2 < r^2
                 if (math.pow(center_x - sonar_center.x,2) + (math.pow(center_y - sonar_center.y, 2))) < math.pow(radius, 2):
                     number_of_fish += 1
-                    # if there actually is a fish we also want to get the timestamp
-                    labels_name = labels.rsplit("/", 1)
-                    timestamp = labels_name[1][:-4] #remove .txt 
-                    timestamp = correct_timestamp(timestamp)
+    # if there actually is a fish we also want to get the timestamp
+    labels_name = labels.rsplit("/", 1)
+    timestamp = labels_name[1][:-4] #remove .txt 
+    timestamp = correct_timestamp(timestamp)
 
 
     if number_of_fish > 0:
         return number_of_fish, timestamp
     else:
-        return 
+        return 0, timestamp
 
 
 def correct_timestamp(timestamp):
@@ -194,8 +203,6 @@ def correct_timestamp(timestamp):
 def plot_singletargets():
     times = []
     depths = []
-
-    
 
 
     with open ("data/fish_singletargets2.csv", "r") as file:
@@ -256,36 +263,97 @@ def plot_singletargets():
     plt.show()
 
 
+def sfish_timeseries(imgs_labels_paths, R_i_s, sonar_center, plot=True):
+    """
+    Find number of fish within the sonar region and their timestamps
+    Creates a plot that shows the number of fish within the sonar region for a time period.
 
-def main():
-    fish_root = os.getcwd()
+    sfish are fish in the sonar region
+    """
+
+    timeseries = []
+    for _, label_path in imgs_labels_paths.items():
+        #img = cv2.imread(img_path)
+        #display_labels(img, label_path)
+        number_of_fish, timestamp = find_fish_in_sonar_region(label_path, R_i_s, sonar_center)
+
+        timeseries.append((timestamp, number_of_fish))
+    
+    zlst = list(zip(*timeseries))
+
+    ts = pd.Series(zlst[1], index=zlst[0])
+
+    ax = plt.figure().gca()
+    bar_width = 5.0 / len(ts.index)
+    plt.bar(ts.index, ts.values, bar_width)
+
+    plt.title('Fish found in the sonar region of the images by optical analysis')
+    plt.ylabel('Number of fish')
+    plt.xlabel('Time')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    plt.gcf().autofmt_xdate() #make the xlabel slightly prettier
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    ax.xaxis.set_minor_formatter(mdates.DateFormatter("%H:%M"))
+
+
+    if save_plots:
+        plt.savefig("figures/Number_sfish.png")
+        print("Figure saved to the figures folder!")
+    if show_plots:
+        plt.show()
+        
+    return ts
+        
+
+def init_data():
+    """
+    Gets and returns the paths to all the images and their labels in a dictionary.
+
+    Return: imgs_labels_paths
+    """
+    
+    #fish_root = os.getcwd()
 
     #relative path to images
-    img_path = "data/cam_with_labels/20190303/"
+    img_path = "data/imgs/20190303/"
     imgs_labels_paths = create_img_label_path_dict(img_path)
-
-    imgs = list(imgs_labels_paths.keys())
     
-
-
     # Calculate radius and offset of sonar region
     R_i_s, t_i_x = calculate_sonar_region()
     sonar_center = sonar_region_center(t_i_x)
 
+    return imgs_labels_paths, R_i_s, t_i_x, sonar_center
+
+
+def main():
+    global save_plots 
+    global show_plots 
+
+    save_plots = False
+    show_plots = False
+
+
+
+
+    imgs_labels_paths, R_i_s, t_i_x, sonar_center = init_data()
+    sfish_timeseries(imgs_labels_paths, R_i_s, sonar_center)
+
+    
     # Store all images with their sonar regions
     #for img_path in imgs:
     #    mark_sonar_region(img_path, R_i_s, t_i_x)
 
-    # Find number of fish within the sonar region and their timestamps
-    number_of_images_with_fish_in_sonar_region = 0
-    for img_path, label_path in imgs_labels_paths.items():
-        #img = cv2.imread(img_path)
-        #display_labels(img, label_path)
-        result = find_fish_in_sonar_region(label_path, R_i_s, sonar_center)
-        if result != None:
-            number_of_images_with_fish_in_sonar_region += 1
-            print(result)
-    print(number_of_images_with_fish_in_sonar_region)
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
 
 
     #display_labels(cv2.imread(list(imgs_labels_paths.keys())[12]), list(imgs_labels_paths.values())[12])
@@ -297,4 +365,4 @@ def main():
     print("Done!")
 
 
-plot_singletargets()
+main()
