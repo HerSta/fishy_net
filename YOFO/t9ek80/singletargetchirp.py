@@ -12,7 +12,6 @@ from datetime import datetime, timedelta
 import os
 
 
-
 class ek80(t9ek80.t9ek80):
     
     def __init__(self, argv):
@@ -31,7 +30,7 @@ class ek80(t9ek80.t9ek80):
 
 
         if mtype == "SingleTarget" or mtype == "SingleTargetChirp":
-            with open("fish_singletargets.csv", "a") as file:
+            with open("fish_singletargets_70db.csv", "a") as file:
                 for element in Payload:
                     # Filter off elements that are within 2 meters of sonar or surface
                     if element[0] < 2 or element[0] > 10:
@@ -65,8 +64,8 @@ class ek80(t9ek80.t9ek80):
 startime = ""
 print("Waiting for messages.")
 #df = pd.DataFrame(columns=["Time", "Depth", "Forward", "Side", "Sa"])
-with open("fish_singletargets.csv", "w") as file:
-    file.write("Time, Depth, Forward, Side, Sa")
+with open("fish_singletargets_70db.csv", "w") as file:
+    file.write("Time,Depth,Forward,Side,Sa")
     file.write("\n")
 run = ek80(sys.argv)
 run.main()

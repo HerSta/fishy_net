@@ -578,7 +578,7 @@ class t9ek80:
         try:
             data = sock.recv(8000)
         except socket.timeout:
-            print ("No Equipment found, make shure the IP:port is set to: {:s}:{:d}".format(self.UDP_IP,self.UDP_PORT))
+            print ("No Equipment found, make sure the IP:port is set to: {:s}:{:d}".format(self.UDP_IP,self.UDP_PORT))
             sock.close()
             return
 
