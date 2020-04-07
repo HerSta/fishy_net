@@ -16,10 +16,10 @@
 		<req>TSDetectionChirp,ChannelID=?,
 			MinTSValue=-70,
 			LayerType=Surface,
-			Range = 12,
+			Range = 15,
 			RangeStart=0,
-			RangeBeforeTarget=0.15,
-			RangeAfterTarget=0.15,
+			RangeBeforeTarget=0.10,
+			RangeAfterTarget=0.10,
 			MaxGainCompensation=3.0,
 			MaxPhasedeviation=25.0</req>
 		<res>h</res> 						--><!-- Get itterator or data -->
