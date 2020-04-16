@@ -11,6 +11,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 import os
 
+import StructEchoTraceWBT
+import pickle
 
 class ek80(t9ek80.t9ek80):
     
@@ -26,24 +28,28 @@ class ek80(t9ek80.t9ek80):
         global startime
 
         # dt is datetime
-        dt_timenow = datetime.strptime(timenow, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=1)
+        dt_timenow = datetime.strptime(timenow, "%Y-%m-%dT%H:%M:%SZ")# - timedelta(hours=1)
 
-
+        #EchoTraceList = []
+        #EchoTimeStamps = []
+        #number_of_messages_since_last_save = 0
         if mtype == "SingleTarget" or mtype == "SingleTargetChirp":
-            with open("fish_singletargets_70db.csv", "a") as file:
-                for element in Payload:
-                    # Filter off elements that are within 2 meters of sonar or surface
-                    if element[0] < 2 or element[0] > 10:
-                        continue
+            for element in Payload:
+                # Filter off elements that are within 2 meters of sonar or surface
+                if element[0] < 2 or element[0] > 10:
+                    continue
 
-                    print("New message arrived! Writing to csv")
-                    file.write(str(dt_timenow) + ',' +  str(element[0])+ ',' + str(element[3]) + ',' + str(element[4]) + ',' + str(element[5]))
-                    file.write("\n")
-                    
+                print("New message arrived! Writing to file")
+                #file.write(str(dt_timenow) + ',' +  str(element[0])+ ',' + str(element[3]) + ',' + str(element[4]) + ',' + str(element[5]))
+                #ignore element 6 and 7 since they are simply 185 and 255khz
 
+                echotrace = StructEchoTraceWBT.StructEchoTraceWBT(dt_timenow)
+                echotrace.populate(element)
 
+                with open(filename, "ab") as fp: #b is for binary mode
+                    pickle.dump(echotrace, fp)
+                        
 
-        
         if dt_timenow == startime:
             print("DONE")
             os._exit(1)
@@ -62,11 +68,13 @@ class ek80(t9ek80.t9ek80):
 
 
 startime = ""
+filename = "fish_singletargets_testlist.bin"
+get_freq = True
 print("Waiting for messages.")
 #df = pd.DataFrame(columns=["Time", "Depth", "Forward", "Side", "Sa"])
-with open("fish_singletargets_70db.csv", "w") as file:
-    file.write("Time,Depth,Forward,Side,Sa")
-    file.write("\n")
+#with open(filename, "w") as file:
+#    file.write("Time,Depth,Forward,Side,Sa, freq_lim, uncompensated_freq_response, compensated_freq_response")
+#    file.write("\n")
 run = ek80(sys.argv)
 run.main()
 
