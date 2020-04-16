@@ -275,9 +275,7 @@ def plot_singletargets():
 def cfish_ts():
     """
     Find number of fish within the sonar region and their timestamps
-    Creates a plot that shows the number of fish within the sonar region for a time period.
-
-    cfish are fish found in camera images
+    Creates a plot that shows the number of fish within the sonar region for a time period if specified globally.
 
     Returns: 
     ts - a timeseries containing all the detections made. Values are number of fish detected.
@@ -287,87 +285,58 @@ def cfish_ts():
 
     timeseries = []
     for _, label_path in imgs_labels_paths.items():
-        #img = cv2.imread(img_path)
-        #display_labels(img, label_path)
         number_of_fish, timestamp = find_fish_in_sonar_region(label_path, R_i_s, sonar_center)
-
         timeseries.append((timestamp, number_of_fish))
     
     zlst = list(zip(*timeseries))
-
     ts = pd.Series(zlst[1], index=zlst[0], name="cfish")
 
-    ax = plt.figure().gca()
-    bar_width = 5.0 / len(ts.index)
-    plt.bar(ts.index, ts.values, bar_width)
 
-    plt.title('Fish found in the sonar region of the images by optical analysis')
-    plt.ylabel('Number of fish')
-    plt.xlabel('Time')
-    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-
-    plt.gcf().autofmt_xdate() #make the xlabel slightly prettier
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    ax.xaxis.set_minor_formatter(mdates.DateFormatter("%H:%M"))
-
-
-    if save_plots:
-        plt.savefig("figures/Number_cfish.png")
-        print("Figure saved to the figures folder!")
-    if show_plots:
-        plt.show()
+    if save_plots or show_plots:
+        ax = plt.figure().gca()
+        bar_width = 5.0 / len(ts.index)
+        plt.bar(ts.index, ts.values, bar_width)
+        plt.title('Fish found in the sonar region of the images by optical analysis')
+        plt.ylabel('Number of fish')
+        plt.xlabel('Time')
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.gcf().autofmt_xdate() #make the xlabel slightly prettier
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        ax.xaxis.set_minor_formatter(mdates.DateFormatter("%H:%M")) 
+        if save_plots:
+            plt.savefig("figures/Number_cfish.png")
+            print("Figure saved to the figures folder!")
+        if show_plots:
+            plt.show()
         
     return ts
         
 
-def sfish_ts():
-    ts = pd.read_csv("t9ek80/fish_singletargets_70db.csv", parse_dates=[0])
-    
-
-    start_time = "2019-03-03 07:00:00"
+def sfish_ts(threshold_db):
+    ts = pd.read_csv("t9ek80/fish_singletargets_"+ str(threshold_db) +"db.csv", parse_dates=[0])
+    # Prune away some data
     end_time = "2019-03-03 17:00:00"
-
     ts = ts[ts["Time"] < end_time]
-
-    
-    
     time = ts["Time"]
-    #s = pd.Series(datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S"))
-    #time = time.append(s)
-    #time = time.sort_values(axis=0)
-
-
-    depth = ts["Depth"]
-    #k = pd.Series("0")
-    #depth = depth.append(k)
     
-    
-    is_fishes = [1] * len(depth)
-    
-    ax = plt.figure().gca()
-    bar_width = 1.0 / len(ts.index)
-    plt.bar(time, is_fishes, bar_width)
-
-    #plt.plot(time, depth, "x")
-
-    plt.ylabel('Fish present')
-    plt.xlabel('Time')
-    #ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-
-    plt.gcf().autofmt_xdate() #make the xlabel slightly prettier
-    #ax.xaxis_date()
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    ax.xaxis.set_minor_formatter(mdates.DateFormatter("%H:%M"))
-
-
-    if save_plots:
-        plt.savefig("figures/Number_sfish.png")
-        print("Figure saved to the figures folder!")
-    if show_plots:
-        plt.show()
-        
- 
-    
+    if show_plots or save_plots:
+        depth = ts["Depth"]
+        is_fishes = [1] * len(depth)
+        ax = plt.figure().gca()
+        bar_width = 1.0 / len(ts.index)
+        plt.bar(time, is_fishes, bar_width)
+        plt.ylabel('Fish present')
+        plt.xlabel('Time')
+        #ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.gcf().autofmt_xdate() #make the xlabel slightly prettier
+        #ax.xaxis_date()
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        ax.xaxis.set_minor_formatter(mdates.DateFormatter("%H:%M"))
+        if save_plots:
+            plt.savefig("figures/Number_sfish70db.png")
+            print("Figure saved to the figures folder!")
+        if show_plots:
+            plt.show()
     return ts
 
 def init_data():
@@ -390,9 +359,10 @@ def init_data():
     return imgs_labels_paths, R_i_s, t_i_x, sonar_center
 
 
-def compare_cfish_sfish():
+
+def compare_cfish_sfish(threshold_db):
     cfish = cfish_ts()
-    sfish = sfish_ts()
+    sfish = sfish_ts(threshold_db)
 
 
     #Before merging cfish and sfish, cfish must be a dataframe and not a series
@@ -435,23 +405,29 @@ def compare_cfish_sfish():
     # Now morning_cfish contains 20 minutes of detections
     morning_cfish = cfish[cfish.index < cend_time]
     morning_cfish = morning_cfish[morning_cfish.index > cstart_time]
+    n_cfish = len(morning_cfish)
 
     # Now we need a routine that finds the maximum detections in common between sonar and camera
-    
-    dets_time = shift(cfish, sfish, 60*60*4, 60*60*1) #shift sfish 1 hour backwards and 4 forwards
-    plt.plot(dets_time)
+    sfish = sfish.loc[~sfish.index.duplicated(keep="first")]
+
+    dets_time = shift(morning_cfish, sfish, 60*60*4, 60*60*1) #shift sfish 1 hour backwards and 4 forwards
+    # dets_time is a list of tuples that must be unpacked to be plotted
+    x,y = zip(*dets_time)
+    plt.plot(x,y, "x")
+    plt.plot(x, [n_cfish]*len(x), "--r")
     plt.xlabel("Seconds shifted")
     plt.ylabel("Number of detections in common")
+    #plt.savefig("figures/shifted_" + str(threshold_db) + ".png")
+    print("Saved shifting image")
     plt.show()
 
-    print("Morning cfish: " + str(len(morning_cfish)) + " Morning sfish: " + str(len(morning_sfish))+ " Morning tfish: " + str(len(morning_tfish)))
     print("hi")
 
-def shift(ts1, ts2, forward, backward):
+def shift(ts1, ts2,hours_forward, hours_backward, seconds_forward, seconds_backward):
     """
     Takes two timeseries and compares them while shifting ts1 forwards and backwards. ts2 stays fixed.
     """
-    max_cdets = len(ts1) # this is 6
+    max_cdets = len(ts1)
     max_dets = 0
 
     max_time_start = ""
@@ -459,39 +435,38 @@ def shift(ts1, ts2, forward, backward):
 
 
     dets_time = []
-    for i in range(-backward, forward):
-        sstart_time = "2019-03-03 09:40:00"
-        send_time = "2019-03-03 10:00:00"
+    print("Started shifting...")
+    # We do not need to check every second. just +/- 60 seconds for all hours
+    for h in range(-2, 4):
+        for s in range(-60*3, 60*3):
+            sstart_time = "2019-03-03 09:40:00"
+            send_time = "2019-03-03 10:00:00"
 
 
-        sstart_time_utc = datetime.strptime(sstart_time, "%Y-%m-%d %H:%M:%S")
-        sstart_time_utc = sstart_time_utc + timedelta(seconds=i)
+            sstart_time_utc = datetime.strptime(sstart_time, "%Y-%m-%d %H:%M:%S")
+            sstart_time_utc = sstart_time_utc + timedelta(seconds=s) + timedelta(hours=h)
 
-        send_time_utc = datetime.strptime(send_time, "%Y-%m-%d %H:%M:%S")
-        send_time_utc = send_time_utc + timedelta(seconds=i)
+            send_time_utc = datetime.strptime(send_time, "%Y-%m-%d %H:%M:%S")
+            send_time_utc = send_time_utc + timedelta(seconds=s) + timedelta(hours=h)
 
-        # sfish contains all sonar detections from an entire day
-        # here we just take a 20 min interval of detections
-        ts2_subset = ts2[ts2.index < send_time_utc]
-        ts2_subset = morning_sfish[morning_sfish.index > sstart_time_utc]
+            # sfish contains all sonar detections from an entire day
+            # here we just take a 20 min interval of detections
+            ts2_subset = ts2[ts2.index < send_time_utc]
+            ts2_subset = ts2_subset[ts2_subset.index > sstart_time_utc]
 
-#        morning_tfish = common[common.index < send_time_utc]
-#        morning_tfish = morning_tfish[morning_tfish.index > sstart_time_utc]
+            # since we find the common detections based on timestamps we re-add the subtracted time
+            ts2_subset.index -= (timedelta(seconds=s) + timedelta(hours=h))
 
-        common = pd.merge(ts1, ts2_subset, how="inner", on=None, left_index=True, right_index=True)
+            common = pd.merge(ts1, ts2_subset, how="inner", on=None, left_index=True, right_index=True)
 
-        num_dets = len(common)
-        if num_dets > max_dets:
-            max_dets = num_dets
-            max_time_start = sstart_time_utc
-            max_time_end = send_time_utc
+            num_dets = len(common)
+            if num_dets > max_dets:
+                max_dets = num_dets
+                max_time_start = sstart_time_utc
+                max_time_end = send_time_utc
 
-        if num_dets == max_cdets:
-            print("Best timeinterval found!")
-            continue
-
-        # log the number of detections at this particular time
-        dets_time.append((num_dets, i))
+            # log the number of detections at this particular time
+            dets_time.append((s + 60*60*h, num_dets))
 
     return dets_time
 
@@ -504,8 +479,11 @@ def main():
     save_plots = False
     show_plots = False
 
-    compare_cfish_sfish()
+    threshold_db = 60
 
+    compare_cfish_sfish(threshold_db)
+
+    #sfish_ts()
 
     #imgs_labels_paths, R_i_s, t_i_x, sonar_center = init_data()
     #cfish_ts(imgs_labels_paths, R_i_s, sonar_center)

@@ -13,7 +13,7 @@
             "request": "launch",
             "program": "${file}",
             "args":[
-               // "--images", "fish.jpg"
+               "singletargetchirp.xml"
             ],
             "console": "integratedTerminal",
             "cwd": "${fileDirname}"
