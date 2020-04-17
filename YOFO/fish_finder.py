@@ -5,13 +5,13 @@ import os
 import operator
 import csv
 import pandas as pd
-
-
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator # to get integer labels
 import matplotlib.dates as mdates
 from datetime import datetime
 from datetime import timedelta
+
+import visualizer
 
 img_width = 1920
 img_height = 1080
@@ -57,10 +57,6 @@ def calculate_sonar_region():
 
     return R_i_s, t_i_x
 
-
-
-
-
 def transparent_circle(img,center,radius,color,thickness):
     center = tuple(map(int,center))
     rgb = [255*c for c in color[:3]] # convert to 0-255 scale for OpenCV
@@ -82,11 +78,6 @@ def transparent_circle(img,center,radius,color,thickness):
 
     return img
 
-   
-
-
-
-
 def mark_sonar_region(img_path, R_i_s, t_i_x):
     img_center_x = img_width // 2
     img_center_y = img_height // 2
@@ -96,8 +87,6 @@ def mark_sonar_region(img_path, R_i_s, t_i_x):
     #cv2.waitKey()
     img_name = img_path.rsplit("/", 1)
     cv2.imwrite("imgs/imgs_with_sonar_region/" + img_name[1], img)
-
-
 
 def crop_img(img):
     return
@@ -145,13 +134,10 @@ def sonar_region_center(offset):
     center = Point(sonar_center_x,sonar_center_y)
     return center
 
-
 class Point:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-
-
 
 def find_fish_in_sonar_region(labels, radius, sonar_center):
     """
@@ -192,7 +178,6 @@ def find_fish_in_sonar_region(labels, radius, sonar_center):
     else:
         return 0, timestamp
 
-
 def correct_timestamp(timestamp):
     """
     The filename and images contain different timestamps. I assume that the
@@ -207,69 +192,6 @@ def correct_timestamp(timestamp):
     utc_time = utc_time + timedelta(seconds=error_seconds)
 
     return utc_time
-
-
-def plot_singletargets():
-    times = []
-    depths = []
-
-
-    with open ("t9ek80/fish_singletargets_60db.csv", "r") as file:
-        reader = csv.reader(file)
-        sortedlist = sorted(reader, key=operator.itemgetter(0), reverse=False)
-        count = 0
-        for row in sortedlist:
-            if row[0] == "Time":
-                continue
-            utc_time = row[0][11:]
-            #utc_time = datetime.strptime(utc_time,"%H:%M:%S")
-
-            times.append(utc_time)
-            depths.append(float(row[1]))
-
-    time_start = datetime.strptime(times[0], "%H:%M:%S")
-    time_end = datetime.strptime(times[-1], "%H:%M:%S")
-
-    total_seconds = (time_end - time_start).total_seconds()
-
-    all_times = []
-    all_depths = []
-    now = time_start
-    while now != time_end:
-        all_times.append(now.strftime("%H:%M:%S"))
-        all_depths.append(0)
-        now += timedelta(seconds=1)
-
-
-    # Remove all duplicate timesteps. These are made when detecting several fish simultaneously
-    count = 1
-    current_time = times[0]
-    for time in times[1:]:   
-        if time == current_time:
-            del times[count]
-            del depths[count]
-            
-            current_time = times[count-1]
-        else:
-            current_time = time
-            count += 1
-
-
-    all_count = 0
-    count = 0
-    for all_time in all_times:
-        if all_time == times[count]:
-            all_depths[all_count] = depths[count]
-            count += 1
-            all_count += 1
-        else:
-            all_count += 1
-
-    plt.plot(all_times, all_depths)
-    plt.xticks([time_start.strftime("%H:%M:%S"), all_times[round(len(all_times) / 2)],time_end.strftime("%H:%M:%S")])
-    plt.ylabel("Meters [m]")
-    plt.xlabel("Time [s]")
-    plt.show()
 
 
 def cfish_ts():
@@ -310,33 +232,17 @@ def cfish_ts():
             plt.show()
         
     return ts
-        
 
-def sfish_ts(threshold_db):
-    ts = pd.read_csv("t9ek80/fish_singletargets_"+ str(threshold_db) +"db.csv", parse_dates=[0])
-    # Prune away some data
-    end_time = "2019-03-03 17:00:00"
-    ts = ts[ts["Time"] < end_time]
-    time = ts["Time"]
-    
-    if show_plots or save_plots:
-        depth = ts["Depth"]
-        is_fishes = [1] * len(depth)
-        ax = plt.figure().gca()
-        bar_width = 1.0 / len(ts.index)
-        plt.bar(time, is_fishes, bar_width)
-        plt.ylabel('Fish present')
-        plt.xlabel('Time')
-        #ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-        plt.gcf().autofmt_xdate() #make the xlabel slightly prettier
-        #ax.xaxis_date()
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        ax.xaxis.set_minor_formatter(mdates.DateFormatter("%H:%M"))
-        if save_plots:
-            plt.savefig("figures/Number_sfish70db.png")
-            print("Figure saved to the figures folder!")
-        if show_plots:
-            plt.show()
+def sfish_ts(threshold_db, start, end):
+    """
+    Generates a timeseries of fish detected by the sonar between start and end.
+
+    Returns: timeseries
+    """
+    ts = pd.read_csv("t9ek80/fish_singletargets_"+ str(threshold_db) +"db_nodiscard.csv", parse_dates=[0])
+    ts = ts.sort_values("Time")
+    ts = ts[ts["Time"] < end]
+    ts = ts[ts["Time"] > start] 
     return ts
 
 def init_data():
@@ -357,8 +263,6 @@ def init_data():
     sonar_center = sonar_region_center(t_i_x)
 
     return imgs_labels_paths, R_i_s, t_i_x, sonar_center
-
-
 
 def compare_cfish_sfish(threshold_db):
     cfish = cfish_ts()
@@ -470,8 +374,6 @@ def shift(ts1, ts2,hours_forward, hours_backward, seconds_forward, seconds_backw
 
     return dets_time
 
-
-
 def main():
     global save_plots 
     global show_plots 
@@ -481,7 +383,13 @@ def main():
 
     threshold_db = 60
 
-    compare_cfish_sfish(threshold_db)
+    #compare_cfish_sfish(threshold_db)
+
+    s_start = "2019-03-03 07:00:00"
+    s_end = "2019-03-03 17:00:00"
+    sfish = sfish_ts(threshold_db, s_start, s_end)
+
+    visualizer.plot_sfish(sfish, threshold_db, show=True, save=True)
 
     #sfish_ts()
 

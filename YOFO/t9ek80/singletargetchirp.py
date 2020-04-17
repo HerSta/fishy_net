@@ -36,20 +36,19 @@ class ek80(t9ek80.t9ek80):
         if mtype == "SingleTarget" or mtype == "SingleTargetChirp":
             for element in Payload:
                 # Filter off elements that are within 2 meters of sonar or surface
-                if element[0] < 2 or element[0] > 10:
-                    continue
+                #if element[0] < 2 or element[0] > 10:
+                #    continue
 
                 print("New message arrived! Writing to file")
-                #file.write(str(dt_timenow) + ',' +  str(element[0])+ ',' + str(element[3]) + ',' + str(element[4]) + ',' + str(element[5]))
-                #ignore element 6 and 7 since they are simply 185 and 255khz
-
-                echotrace = StructEchoTraceWBT.StructEchoTraceWBT(dt_timenow)
-                echotrace.populate(element)
-
-                with open(filename, "ab") as fp: #b is for binary mode
-                    pickle.dump(echotrace, fp)
-                        
-
+                if csv:
+                    with open(filename, "a") as f:
+                        f.write(str(dt_timenow) + ',' +  str(element[0]))
+                        f.write("\n")
+                else:
+                    echotrace = StructEchoTraceWBT.StructEchoTraceWBT(dt_timenow)
+                    echotrace.populate(element)
+                    with open(filename, "ab") as fp: #b is for binary mode
+                        pickle.dump(echotrace, fp)
         if dt_timenow == startime:
             print("DONE")
             os._exit(1)
@@ -67,14 +66,18 @@ class ek80(t9ek80.t9ek80):
 
 
 
+csv = True
 startime = ""
-filename = "fish_singletargets_testlist.bin"
 get_freq = True
 print("Waiting for messages.")
-#df = pd.DataFrame(columns=["Time", "Depth", "Forward", "Side", "Sa"])
-#with open(filename, "w") as file:
-#    file.write("Time,Depth,Forward,Side,Sa, freq_lim, uncompensated_freq_response, compensated_freq_response")
-#    file.write("\n")
+if csv:
+    filename = "fish_singletargets_60db_nodiscard.csv"
+    df = pd.DataFrame(columns=["Time", "Depth"])
+    #with open(filename, "w") as file:
+    #    file.write("Time,Depth")
+    #    file.write("\n")
+else:
+    filename = "fish_singletargets_testlist.bin"
 run = ek80(sys.argv)
 run.main()
 
