@@ -4,6 +4,7 @@ import matplotlib.dates as mdates
 from datetime import datetime
 import numpy as np
 import t9ek80.StructEchoTraceWBT
+import math
 from datetime import timedelta
 
 def plot_sfish(ts, threshold, show=True, save=False):
@@ -103,16 +104,44 @@ def plot_singletargets():
     plt.show()
 
 
+def plot_shifted_commons(tuple_list_list, n, threshold, show=True, save=False):
+    #dets_time is a list of tuples that must be unpacked to be plotted
+    for tuple_list in tuple_list_list:
+        ax = plt.figure().gca()
+        x,y = zip(*tuple_list[1])
+        #bar_width = 10.0 / len(y)
+        plt.stem(x,y, use_line_collection=True)
+        plt.plot(x, [n]*len(x), "--r")
+        plt.title("Hours shifted: " + str(tuple_list[0]))
+        plt.xlabel("Seconds shifted")
+        plt.ylabel("Number of detections in common")
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        if save:
+            plt.savefig("figures/shifted_" + str(threshold) + "db_" + str(tuple_list[0] ) + ".png")
+            print("Saved shifting image")
+        if show:
+            plt.show()
 
-def plot_sfish_freq(sfish):
+
+
+def plot_sfish_freq(sfish, show=True, save=False):
     """
     Plot the chirp frequency for a single fish
     """
 
     #QUESTION: how does the frequency match the frequency response?
-
+    plt.clf()
     frequencies = np.linspace(185, 255, len(sfish.uncompensatedFrequencyResponse))
-    plt.plot(frequencies, sfish.uncompensatedFrequencyResponse)
+    plt.plot(frequencies, sfish.compensatedFrequencyResponse)
+    plt.title("Time: " + str(sfish.time))
     plt.ylabel("Strength (dB)")
-    plt.xlabel("Frequency")
-    plt.show()
+    plt.xlabel("Frequency (kHz)")
+    plt.xticks(np.arange(185, 260, 10))
+    plt.legend(["Depth: " + str(round(sfish.Depth,3)) + "m"])
+    #plt.yticks(np.linspace(math.floor(min(sfish.compensatedFrequencyResponse)), math.ceil(max(sfish.compensatedFrequencyResponse)), 4))
+    string_time = (str(sfish.time)).replace(":", "-") 
+    if save:
+        plt.savefig("figures/compensatedFreq_60db_" + string_time + ".png")
+        print("Saved compensatedFreq img")
+    if show:
+        plt.show()

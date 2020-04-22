@@ -36,8 +36,8 @@ class ek80(t9ek80.t9ek80):
         if mtype == "SingleTarget" or mtype == "SingleTargetChirp":
             for element in Payload:
                 # Filter off elements that are within 2 meters of sonar or surface
-                #if element[0] < 2 or element[0] > 10:
-                #    continue
+                if element[0] < 1 or element[0] > 13:
+                    continue
 
                 print("New message arrived! Writing to file")
                 if csv:
@@ -66,18 +66,18 @@ class ek80(t9ek80.t9ek80):
 
 
 
-csv = True
+csv = False
 startime = ""
 get_freq = True
 print("Waiting for messages.")
 if csv:
-    filename = "fish_singletargets_60db_nodiscard.csv"
+    filename = "fish_singletargets_60db.csv"
     df = pd.DataFrame(columns=["Time", "Depth"])
     #with open(filename, "w") as file:
     #    file.write("Time,Depth")
     #    file.write("\n")
 else:
-    filename = "fish_singletargets_testlist.bin"
+    filename = "fish_singletargets_60db_testlist.bin"
 run = ek80(sys.argv)
 run.main()
 
