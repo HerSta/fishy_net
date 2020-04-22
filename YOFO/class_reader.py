@@ -7,7 +7,7 @@ import numpy as np
 import visualizer
 
 def get_sfish():
-    my_file = open("t9ek80/fish_singletargets_testlist.bin", "rb")
+    my_file = open("t9ek80/fish_singletargets_60db_testlist.bin", "rb")
     sfish = []
     while True:
         try:
@@ -21,5 +21,9 @@ def get_sfish():
 
 def main():
     sfish = get_sfish()
-    visualizer.plot_sfish_freq(sfish)
+    for i in range(10):
+        visualizer.plot_sfish_freq(sfish[i], show=False, save=True)
     print("hi")
+
+
+main()

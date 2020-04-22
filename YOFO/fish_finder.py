@@ -19,6 +19,11 @@ img_height = 1080
 I_x = 1920
 I_y = 1080
 
+son_depth = 14
+cam_hfov = math.radians(92)
+son_fov = math.radians(7) #actually 7
+t_x = 0.2
+
 save_plots = False
 show_plots = False
 
@@ -29,11 +34,6 @@ def create_img_label_path_dict(path):
     return imgs_labels
 
 def calculate_sonar_region():
-    son_depth = 12 #meters
-
-    cam_hfov = math.radians(92) 
-    son_fov = math.radians(7)
-    t_x = 0.2 # distance between sonar and camera
 
     x_o = 2*(math.sin(cam_hfov / 2) *(son_depth)) / (math.sin((math.pi / 2) - (cam_hfov / 2)))
     print(x_o)
@@ -43,7 +43,7 @@ def calculate_sonar_region():
 
     img_ratio = img_height / img_width
 
-    cam_rect_a = img_ratio * img_width
+    #cam_rect_a = img_ratio * img_width
 
     # Scaling factor between world and image
     S = I_x / x_o
@@ -78,6 +78,20 @@ def transparent_circle(img,center,radius,color,thickness):
 
     return img
 
+
+def img_path_to_datetime(img_path):
+    name = img_path.rsplit("/", 1)
+
+    timestamp = datetime.strptime(name, "%Y-%m-%d-%H-%M-%S")
+    print("hi")
+
+def timestamp_to_img(timestamp):
+    timestring = str(timestamp).replace(" ", "-").replace(":","-")
+    path = "data/imgs/20190303/" + timestring + ".jpg"
+    return cv2.imread(path)
+    
+
+
 def mark_sonar_region(img_path, R_i_s, t_i_x):
     img_center_x = img_width // 2
     img_center_y = img_height // 2
@@ -85,11 +99,28 @@ def mark_sonar_region(img_path, R_i_s, t_i_x):
 
     #cv2.imshow("x", img)
     #cv2.waitKey()
-    img_name = img_path.rsplit("/", 1)
-    cv2.imwrite("imgs/imgs_with_sonar_region/" + img_name[1], img)
+    #img_name = img_path.rsplit("/", 1)
+    #cv2.imwrite("imgs/imgs_with_sonar_region/" + img_name[1], img)
+    return img
 
-def crop_img(img):
-    return
+def mark_sonar_region(img, R_i_s, t_i_x):
+    img_center_x = img_width // 2
+    img_center_y = img_height // 2
+    img = transparent_circle(img), (img_center_x + round(t_i_x), img_center_y), R_i_s, (255,0,0), -1)
+
+    #cv2.imshow("x", img)
+    #cv2.waitKey()
+    #img_name = img_path.rsplit("/", 1)
+    #cv2.imwrite("imgs/imgs_with_sonar_region/" + img_name[1], img)
+    return img
+
+def plot_img_with_sonar_region(timestamp):
+    imgs_labels_paths, R_i_s, t_i_x, sonar_center = init_data()
+    img = timestamp_to_img(timestamp)
+    img = mark_sonar_region(img, R_i_s, t_i_x)
+    print("hi")
+
+
 
 def display_labels(img, labels):
     """
@@ -233,13 +264,13 @@ def cfish_ts():
         
     return ts
 
-def sfish_ts(threshold_db, start, end):
+def sfish_ts(threshold_db, start, end, discard):
     """
     Generates a timeseries of fish detected by the sonar between start and end.
 
     Returns: timeseries
     """
-    ts = pd.read_csv("t9ek80/fish_singletargets_"+ str(threshold_db) +"db_nodiscard.csv", parse_dates=[0])
+    ts = pd.read_csv("t9ek80/fish_singletargets_"+ str(threshold_db) + "db" + str(discard) + ".csv", parse_dates=[0])
     ts = ts.sort_values("Time")
     ts = ts[ts["Time"] < end]
     ts = ts[ts["Time"] > start] 
@@ -264,10 +295,9 @@ def init_data():
 
     return imgs_labels_paths, R_i_s, t_i_x, sonar_center
 
-def compare_cfish_sfish(threshold_db):
+def compare_cfish_sfish(threshold_db, s_start, s_end, discard, compare_start, compare_end):
     cfish = cfish_ts()
-    sfish = sfish_ts(threshold_db)
-
+    sfish = sfish_ts(threshold_db, s_start, s_end, discard)
 
     #Before merging cfish and sfish, cfish must be a dataframe and not a series
     cfish = pd.DataFrame(data = cfish.values, index = cfish.index)
@@ -276,103 +306,99 @@ def compare_cfish_sfish(threshold_db):
     # remove cfish rows that do not have fish in them
     cfish = cfish[cfish["Num_fish in img"] != 0]
 
-    #maybe check plus-minus one second diff
-
     total_cfish = len(cfish)
     total_sfish = len(sfish)
-    print("=========================")
-    print("Comparing cfish and sfish!")
     print("Total timestamps with detected cfish: " + str(total_cfish) + " sfish: " + str(total_sfish))
-
-    #maybe create a function to make sfish and cfish have the same start/stop times
-
   
     sfish.set_index("Time", inplace=True)
 
-    #how="inner" means to take the intersection of keys
-    #on=None means to use the index as keys
-    tfish = pd.merge(cfish, sfish, how="inner", on=None, left_index=True, right_index=True)
-
-    tfish = tfish[tfish["Num_fish in img"] != 0]
-
-    print("The total number of timestamps where a fish was found both with sonar and camera: " + str(len(tfish)))
-    print("Since a million fish during the afternoon... we only look from 09:40 to 10:00")
-
-    cstart_time = "2019-03-03 09:40:00"
-    cend_time = "2019-03-03 10:00:00"
-
-
-    # Within 20 min the camera found for example 10 fish. We now want to find the time windows in the 
-    # sonar data where all the same 10 fish are found. We expect the sonar to find MORE than 10, since it
-    # records data continuously. However we require that all 10 cfish be identified as sfish.
-
-    # Now morning_cfish contains 20 minutes of detections
-    morning_cfish = cfish[cfish.index < cend_time]
-    morning_cfish = morning_cfish[morning_cfish.index > cstart_time]
-    n_cfish = len(morning_cfish)
-
-    # Now we need a routine that finds the maximum detections in common between sonar and camera
     sfish = sfish.loc[~sfish.index.duplicated(keep="first")]
 
-    dets_time = shift(morning_cfish, sfish, 60*60*4, 60*60*1) #shift sfish 1 hour backwards and 4 forwards
-    # dets_time is a list of tuples that must be unpacked to be plotted
-    x,y = zip(*dets_time)
-    plt.plot(x,y, "x")
-    plt.plot(x, [n_cfish]*len(x), "--r")
-    plt.xlabel("Seconds shifted")
-    plt.ylabel("Number of detections in common")
-    #plt.savefig("figures/shifted_" + str(threshold_db) + ".png")
-    print("Saved shifting image")
-    plt.show()
+    dets_time = shift(cfish, sfish,compare_start, compare_end, 1, 1, 30,30,) #shift sfish 1 hour backwards and 4 forwards
 
-    print("hi")
+    get_common(cfish, sfish, compare_start, compare_end)
+    return dets_time
+    
+def compare_no_shift(threshold_db, s_start, s_end, discard, compare_start, compare_end):
+    cfish = cfish_ts()
+    sfish = sfish_ts(threshold_db, s_start, s_end, discard)
 
-def shift(ts1, ts2,hours_forward, hours_backward, seconds_forward, seconds_backward):
+    #Before merging cfish and sfish, cfish must be a dataframe and not a series
+    cfish = pd.DataFrame(data = cfish.values, index = cfish.index)
+    cfish.columns = ["Num_fish in img"]
+
+    # remove cfish rows that do not have fish in them
+    cfish = cfish[cfish["Num_fish in img"] != 0]
+
+    total_cfish = len(cfish)
+    total_sfish = len(sfish)
+    sfish.set_index("Time", inplace=True)
+
+    sfish = sfish.loc[~sfish.index.duplicated(keep="first")]
+
+    common = get_common(cfish, sfish, compare_start, compare_end)
+    for row in common.iterrows():
+        #plot row[0]
+        plot_img_with_sonar_region(row[0])
+        print("showing")
+
+
+
+def get_cfish_detections(time_start, time_end):
+    cfish = cfish_ts()
+    cfish = cfish[cfish.index < time_end]
+    cfish = cfish[cfish.index > time_start]
+    cfish = cfish[cfish.values != 0]
+    print("Between " + time_start + " and " + time_end + ", " + str(len(cfish)) + " fish was found in the optical data.")
+    return len(cfish)
+
+def get_common(ts1, ts2, time_start, time_end):
+    ts1 = ts1[ts1.index < time_end]
+    ts1 = ts1[ts1.index > time_start]
+
+    ts2 = ts2[ts2.index < time_end]
+    ts2 = ts2[ts2.index > time_start]
+
+    return pd.merge(ts1, ts2, how="inner", on=None, left_index=True, right_index=True)
+
+def shift(ts1, ts2, compare_start, compare_end, hours_forward, hours_backward, seconds_forward, seconds_backward):
     """
     Takes two timeseries and compares them while shifting ts1 forwards and backwards. ts2 stays fixed.
     """
-    max_cdets = len(ts1)
-    max_dets = 0
-
-    max_time_start = ""
-    max_time_end = ""
-
 
     dets_time = []
     print("Started shifting...")
     # We do not need to check every second. just +/- 60 seconds for all hours
-    for h in range(-2, 4):
-        for s in range(-60*3, 60*3):
-            sstart_time = "2019-03-03 09:40:00"
-            send_time = "2019-03-03 10:00:00"
-
-
-            sstart_time_utc = datetime.strptime(sstart_time, "%Y-%m-%d %H:%M:%S")
-            sstart_time_utc = sstart_time_utc + timedelta(seconds=s) + timedelta(hours=h)
-
-            send_time_utc = datetime.strptime(send_time, "%Y-%m-%d %H:%M:%S")
-            send_time_utc = send_time_utc + timedelta(seconds=s) + timedelta(hours=h)
-
-            # sfish contains all sonar detections from an entire day
-            # here we just take a 20 min interval of detections
-            ts2_subset = ts2[ts2.index < send_time_utc]
-            ts2_subset = ts2_subset[ts2_subset.index > sstart_time_utc]
-
-            # since we find the common detections based on timestamps we re-add the subtracted time
-            ts2_subset.index -= (timedelta(seconds=s) + timedelta(hours=h))
-
-            common = pd.merge(ts1, ts2_subset, how="inner", on=None, left_index=True, right_index=True)
-
-            num_dets = len(common)
-            if num_dets > max_dets:
-                max_dets = num_dets
-                max_time_start = sstart_time_utc
-                max_time_end = send_time_utc
-
-            # log the number of detections at this particular time
-            dets_time.append((s + 60*60*h, num_dets))
-
+    for h in range(-hours_backward, hours_forward + 1):
+        common = shift_seconds(ts1, ts2, compare_start, compare_end, seconds_backward, seconds_forward, at_hour=h)    
+        dets_time.append((h,common))
     return dets_time
+
+def shift_seconds(ts1, ts2, compare_start, compare_end, seconds_backward, seconds_forward, at_hour):
+    """
+    Returns a list of tuples at the form (seconds shifted, number of detections)
+    """
+    det_list = []
+    for s in range(-seconds_backward, seconds_forward + 1):
+
+        sstart_time_utc = datetime.strptime(compare_start, "%Y-%m-%d %H:%M:%S")
+        sstart_time_utc = sstart_time_utc + timedelta(seconds=s) + timedelta(hours=at_hour)
+
+
+        send_time_utc = datetime.strptime(compare_end, "%Y-%m-%d %H:%M:%S")
+        send_time_utc = send_time_utc + timedelta(seconds=s) + timedelta(hours=at_hour)
+
+        ts2_subset = ts2[ts2.index < send_time_utc]
+        ts2_subset = ts2_subset[ts2_subset.index > sstart_time_utc]
+
+        # since we find the common detections based on timestamps we re-add the subtracted time
+        ts2_subset.index -= (timedelta(seconds=s) + timedelta(hours=at_hour))
+        common = pd.merge(ts1, ts2_subset, how="inner", on=None, left_index=True, right_index=True)
+        num_dets = len(common)
+
+        # log the number of detections at this particular time
+        det_list.append((s, num_dets))
+    return det_list
 
 def main():
     global save_plots 
@@ -381,15 +407,22 @@ def main():
     save_plots = False
     show_plots = False
 
-    threshold_db = 60
-
-    #compare_cfish_sfish(threshold_db)
+    threshold_db = 65
+    discard = "" #_nodiscard or nothing
 
     s_start = "2019-03-03 07:00:00"
     s_end = "2019-03-03 17:00:00"
-    sfish = sfish_ts(threshold_db, s_start, s_end)
+    #sfish = sfish_ts(threshold_db, s_start, s_end)
+    interest_start = "2019-03-03 09:00:00"
+    interest_end = "2019-03-03 11:00:00"
+    common = compare_no_shift(threshold_db, s_start, s_end, discard, interest_start, interest_end)
 
-    visualizer.plot_sfish(sfish, threshold_db, show=True, save=True)
+    #common = compare_cfish_sfish(threshold_db, s_start, s_end, discard, interest_start, interest_end)
+    #cfish_n = get_cfish_detections(interest_start, interest_end)
+    
+    #visualizer.plot_shifted_commons(common,cfish_n, threshold_db, show=True, save=True)
+
+    #visualizer.plot_sfish(sfish, threshold_db, show=True, save=True)
 
     #sfish_ts()
 
@@ -400,24 +433,10 @@ def main():
     # Store all images with their sonar regions
     #for img_path in imgs:
     #    mark_sonar_region(img_path, R_i_s, t_i_x)
-
    
    
-   
-   
-   
-   
-   
-   
-   
-   
-
-
     #display_labels(cv2.imread(list(imgs_labels_paths.keys())[12]), list(imgs_labels_paths.values())[12])
     
-    
-
-
 
     print("Done!")
 
