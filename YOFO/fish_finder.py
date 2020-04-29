@@ -106,7 +106,7 @@ def mark_sonar_region(img_path, R_i_s, t_i_x):
 def mark_sonar_region(img, R_i_s, t_i_x):
     img_center_x = img_width // 2
     img_center_y = img_height // 2
-    img = transparent_circle(img), (img_center_x + round(t_i_x), img_center_y), R_i_s, (255,0,0), -1)
+    img = transparent_circle(img, (img_center_x + round(t_i_x), img_center_y), R_i_s, (255,0,0), -1)
 
     #cv2.imshow("x", img)
     #cv2.waitKey()
@@ -118,6 +118,8 @@ def plot_img_with_sonar_region(timestamp):
     imgs_labels_paths, R_i_s, t_i_x, sonar_center = init_data()
     img = timestamp_to_img(timestamp)
     img = mark_sonar_region(img, R_i_s, t_i_x)
+    cv2.imshow("name",img)
+    cv2.waitKey()
     print("hi")
 
 
@@ -336,9 +338,13 @@ def compare_no_shift(threshold_db, s_start, s_end, discard, compare_start, compa
 
     sfish = sfish.loc[~sfish.index.duplicated(keep="first")]
 
-    common = get_common(cfish, sfish, compare_start, compare_end)
+
+    cfish_m, sfish_m, common = get_common(cfish, sfish, compare_start, compare_end)
+
+    print("Betwween " + compare_start + " and " + compare_end + " we have \n " + str(len(cfish_m)) + " cfish \n" + str(len(sfish_m)) + " sfish")
     for row in common.iterrows():
         #plot row[0]
+        print("Timestamp for common fish: " + str(row[0]))
         plot_img_with_sonar_region(row[0])
         print("showing")
 
@@ -359,7 +365,7 @@ def get_common(ts1, ts2, time_start, time_end):
     ts2 = ts2[ts2.index < time_end]
     ts2 = ts2[ts2.index > time_start]
 
-    return pd.merge(ts1, ts2, how="inner", on=None, left_index=True, right_index=True)
+    return ts1, ts2, pd.merge(ts1, ts2, how="inner", on=None, left_index=True, right_index=True)
 
 def shift(ts1, ts2, compare_start, compare_end, hours_forward, hours_backward, seconds_forward, seconds_backward):
     """
