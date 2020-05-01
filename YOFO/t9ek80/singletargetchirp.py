@@ -14,6 +14,9 @@ import os
 import StructEchoTraceWBT
 import pickle
 
+startime = ""
+filename = ""
+
 class ek80(t9ek80.t9ek80):
     
     def __init__(self, argv):
@@ -24,25 +27,20 @@ class ek80(t9ek80.t9ek80):
 
     def report(self, Payload, Decode, timenow, mtype, desimate):
         # THESE ARE FOR EXITING THE PROGRAM AFTER WE HAVE FETCHED AND STORED ALL OUR VALUES
-        global df
         global startime
 
         # dt is datetime
-        dt_timenow = datetime.strptime(timenow, "%Y-%m-%dT%H:%M:%SZ")# - timedelta(hours=1)
+        try:
+            dt_timenow = datetime.strptime(timenow, "%Y-%m-%dT%H:%M:%SZ")
+        except:
+            dt_timenow = "null"
 
-        #EchoTraceList = []
-        #EchoTimeStamps = []
-        #number_of_messages_since_last_save = 0
         if mtype == "SingleTarget" or mtype == "SingleTargetChirp":
             for element in Payload:
-                # Filter off elements that are within 2 meters of sonar or surface
-                if element[0] < 1 or element[0] > 13:
-                    continue
-
                 print("New message arrived! Writing to file")
                 if csv:
                     with open(filename, "a") as f:
-                        f.write(str(dt_timenow) + ',' +  str(element[0]))
+                        f.write(str(dt_timenow) + ',' +  str(element[0]) + "," + str(element[3]) + "," + str(element[4]) + "," + str(element[5]))
                         f.write("\n")
                 else:
                     echotrace = StructEchoTraceWBT.StructEchoTraceWBT(dt_timenow)
@@ -65,32 +63,20 @@ class ek80(t9ek80.t9ek80):
                 df = df.append({"Time" : dt_timenow, "Depth": element[0], "Forward" : element[3], "Side" : element[4], "Sa" : element[5]}, ignore_index=True)"""
 
 
+def main():
+    global filename
+    csv = True
 
-csv = False
-startime = ""
-get_freq = True
-print("Waiting for messages.")
-if csv:
-    filename = "fish_singletargets_60db.csv"
-    df = pd.DataFrame(columns=["Time", "Depth"])
-    #with open(filename, "w") as file:
-    #    file.write("Time,Depth")
-    #    file.write("\n")
-else:
-    filename = "fish_singletargets_60db_testlist.bin"
-run = ek80(sys.argv)
-run.main()
-
+    print("Waiting for messages.")
+    if csv:
+        filename = "fish_singletargets_70db.csv"
+        with open(filename, "w") as file:
+            file.write("Time,Depth,Along,Athwart,Sa")
+            file.write("\n")
+    else:
+        filename = "fish_singletargets_60db_testlist.bin"
+    run = ek80(sys.argv)
+    run.main()
 
 
-
-
-
-
-
-
-
-
-
-                #print("Time:    {:s}   Depth:   {:f}   Forward: {:f}   Side:    {:f}   Sa:      {:f}"\
-                    #.format(timenow,element[0],element[3],element[4],element[5]))
+main()

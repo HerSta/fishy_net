@@ -246,36 +246,19 @@ def cfish_ts():
     zlst = list(zip(*timeseries))
     ts = pd.Series(zlst[1], index=zlst[0], name="cfish")
 
-
-    if save_plots or show_plots:
-        ax = plt.figure().gca()
-        bar_width = 5.0 / len(ts.index)
-        plt.bar(ts.index, ts.values, bar_width)
-        plt.title('Fish found in the sonar region of the images by optical analysis')
-        plt.ylabel('Number of fish')
-        plt.xlabel('Time')
-        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-        plt.gcf().autofmt_xdate() #make the xlabel slightly prettier
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        ax.xaxis.set_minor_formatter(mdates.DateFormatter("%H:%M")) 
-        if save_plots:
-            plt.savefig("figures/Number_cfish.png")
-            print("Figure saved to the figures folder!")
-        if show_plots:
-            plt.show()
         
     return ts
 
-def sfish_ts(threshold_db, start, end, discard):
+def sfish_ts(threshold_db, start, end):
     """
     Generates a timeseries of fish detected by the sonar between start and end.
 
     Returns: timeseries
     """
-    ts = pd.read_csv("t9ek80/fish_singletargets_"+ str(threshold_db) + "db" + str(discard) + ".csv", parse_dates=[0])
+    ts = pd.read_csv("t9ek80/fish_singletargets_"+ str(threshold_db) + "db" + ".csv",header=0, sep=",", parse_dates=["Time"], index_col="Time")
     ts = ts.sort_values("Time")
-    ts = ts[ts["Time"] < end]
-    ts = ts[ts["Time"] > start] 
+    ts = ts[ts.index < end]
+    ts = ts[ts.index > start] 
     return ts
 
 def init_data():
@@ -297,9 +280,9 @@ def init_data():
 
     return imgs_labels_paths, R_i_s, t_i_x, sonar_center
 
-def compare_cfish_sfish(threshold_db, s_start, s_end, discard, compare_start, compare_end):
+def compare_cfish_sfish(threshold_db, s_start, s_end, compare_start, compare_end):
     cfish = cfish_ts()
-    sfish = sfish_ts(threshold_db, s_start, s_end, discard)
+    sfish = sfish_ts(threshold_db, s_start, s_end)
 
     #Before merging cfish and sfish, cfish must be a dataframe and not a series
     cfish = pd.DataFrame(data = cfish.values, index = cfish.index)
@@ -312,8 +295,7 @@ def compare_cfish_sfish(threshold_db, s_start, s_end, discard, compare_start, co
     total_sfish = len(sfish)
     print("Total timestamps with detected cfish: " + str(total_cfish) + " sfish: " + str(total_sfish))
   
-    sfish.set_index("Time", inplace=True)
-
+    # Remove duplicated timestamps that indicates several fish
     sfish = sfish.loc[~sfish.index.duplicated(keep="first")]
 
     dets_time = shift(cfish, sfish,compare_start, compare_end, 1, 1, 30,30,) #shift sfish 1 hour backwards and 4 forwards
@@ -413,22 +395,26 @@ def main():
     save_plots = False
     show_plots = False
 
-    threshold_db = 65
-    discard = "" #_nodiscard or nothing
+    threshold_db = 70
 
     s_start = "2019-03-03 07:00:00"
     s_end = "2019-03-03 17:00:00"
-    #sfish = sfish_ts(threshold_db, s_start, s_end)
-    interest_start = "2019-03-03 09:00:00"
-    interest_end = "2019-03-03 11:00:00"
-    common = compare_no_shift(threshold_db, s_start, s_end, discard, interest_start, interest_end)
 
-    #common = compare_cfish_sfish(threshold_db, s_start, s_end, discard, interest_start, interest_end)
+
+    cfish = cfish_ts()
+    #sfish = sfish_ts(threshold_db, s_start, s_end)
+    #interest_start = "2019-03-03 09:40:00"
+    #interest_end = "2019-03-03 11:00:00"
+    ##common = compare_no_shift(threshold_db, s_start, s_end, discard, interest_start, interest_end)
+
+    #common = compare_cfish_sfish(threshold_db, s_start, s_end, interest_start, interest_end)
     #cfish_n = get_cfish_detections(interest_start, interest_end)
     
-    #visualizer.plot_shifted_commons(common,cfish_n, threshold_db, show=True, save=True)
+    #visualizer.plot_shifted_commons(common,cfish_n, threshold_db, show=True, save=False)
 
-    #visualizer.plot_sfish(sfish, threshold_db, show=True, save=True)
+    #visualizer.plot_sfish(sfish, show=True, save=True)
+
+    visualizer.plot_cfish(cfish, show=True, save=True)
 
     #sfish_ts()
 

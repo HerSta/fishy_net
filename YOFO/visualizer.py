@@ -8,7 +8,7 @@ import math
 from datetime import timedelta
 
 def plot_sfish(ts, threshold, show=True, save=False):
-    time = ts["Time"]
+    time = ts.index
     # count number of fish
     t_prev = time[0]
     detections = [1]
@@ -26,8 +26,13 @@ def plot_sfish(ts, threshold, show=True, save=False):
     time = time.drop_duplicates()
 
     ax = plt.figure().gca()
-    bar_width = 0.9 / len(detections)
-    plt.bar(time, detections, bar_width)
+    #bar_width = 0.9 / len(detections)
+    #plt.bar(time, detections, bar_width)
+    
+
+    markers,stems,base = plt.stem(time, detections, markerfmt=",", use_line_collection=True)
+    stems.set_linewidth(1)
+    #plt.plot(time, detections)
     plt.ylabel('Number of Fish')
     plt.xlabel('Time')
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -36,7 +41,7 @@ def plot_sfish(ts, threshold, show=True, save=False):
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
     ax.xaxis.set_minor_formatter(mdates.DateFormatter("%H:%M"))
     if save:
-        plt.savefig("figures/Number_sfish" + str(threshold) + "db_nodiscard.png")
+        plt.savefig("figures/Number_sfish" + str(threshold) + "_stem.png")
         print("Figure saved to the figures folder!")
     if show:
         plt.show()
@@ -122,7 +127,27 @@ def plot_shifted_commons(tuple_list_list, n, threshold, show=True, save=False):
         if show:
             plt.show()
 
+def plot_cfish(ts, show=True, save=False):
+    ax = plt.figure().gca()
+    #bar_width = 5.0 / len(ts.index)
+    #plt.bar(ts.index, ts.values, bar_width)
+    #plt.title('Fish found in the sonar region of the images by optical analysis')
 
+    markers,stems,base = plt.stem(ts.index, ts.values, markerfmt=",", use_line_collection=True)
+    stems.set_linewidth(1)
+
+    plt.ylabel('Number of fish')
+    plt.xlabel('Time')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.gcf().autofmt_xdate() #make the xlabel slightly prettier
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    ax.xaxis.set_minor_formatter(mdates.DateFormatter("%H:%M")) 
+
+    if save:
+        plt.savefig("figures/Number_cfish.png")
+        print("Figure saved to the figures folder!")
+    if show:
+        plt.show()
 
 def plot_sfish_freq(sfish, show=True, save=False):
     """
