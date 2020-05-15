@@ -69,7 +69,7 @@ def main():
 
     print("Waiting for messages.")
     if csv:
-        filename = "fish_singletargets_70db.csv"
+        filename = "fish_singletargets_70db_v2.csv"
         with open(filename, "w") as file:
             file.write("Time,Depth,Along,Athwart,Sa")
             file.write("\n")

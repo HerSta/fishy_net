@@ -36,12 +36,11 @@ def create_img_label_path_dict(path):
 def calculate_sonar_region():
 
     x_o = 2*(math.sin(cam_hfov / 2) *(son_depth)) / (math.sin((math.pi / 2) - (cam_hfov / 2)))
-    print(x_o)
     #y_0 = (I_y * x_o) / I_x
 
     R_s =  (math.sin(son_fov / 2) *(son_depth)) / (math.sin((math.pi / 2) - (son_fov / 2)))
 
-    img_ratio = img_height / img_width
+    #img_ratio = img_height / img_width
 
     #cam_rect_a = img_ratio * img_width
 
@@ -259,6 +258,16 @@ def sfish_ts(threshold_db, start, end):
     ts = ts.sort_values("Time")
     ts = ts[ts.index < end]
     ts = ts[ts.index > start] 
+
+
+    # there might be some wrong values in the dataset since EK80 is aids
+    ts = ts[ts["Depth"] < 20]
+    ts = ts[ts["Depth"] > -1]
+
+
+    #if ts.
+
+
     return ts
 
 def init_data():
@@ -401,20 +410,20 @@ def main():
     s_end = "2019-03-03 17:00:00"
 
 
-    cfish = cfish_ts()
-    #sfish = sfish_ts(threshold_db, s_start, s_end)
-    #interest_start = "2019-03-03 09:40:00"
-    #interest_end = "2019-03-03 11:00:00"
+    #cfish = cfish_ts()
+    sfish = sfish_ts(threshold_db, s_start, s_end)
+    interest_start = "2019-03-03 12:40:00"
+    interest_end = "2019-03-03 13:00:00"
     ##common = compare_no_shift(threshold_db, s_start, s_end, discard, interest_start, interest_end)
 
-    #common = compare_cfish_sfish(threshold_db, s_start, s_end, interest_start, interest_end)
-    #cfish_n = get_cfish_detections(interest_start, interest_end)
+    common = compare_cfish_sfish(threshold_db, s_start, s_end, interest_start, interest_end)
+    cfish_n = get_cfish_detections(interest_start, interest_end)
     
-    #visualizer.plot_shifted_commons(common,cfish_n, threshold_db, show=True, save=False)
+    visualizer.plot_shifted_commons(common,cfish_n, threshold_db, show=True, save=False)
 
     #visualizer.plot_sfish(sfish, show=True, save=True)
 
-    visualizer.plot_cfish(cfish, show=True, save=True)
+    #visualizer.plot_cfish(cfish, show=True, save=True)
 
     #sfish_ts()
 

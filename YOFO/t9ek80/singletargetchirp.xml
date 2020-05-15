@@ -16,7 +16,7 @@
 		<req>TSDetectionChirp,ChannelID=?,
 			MinTSValue=-70,
 			LayerType=Surface,
-			Range = 15,
+			Range = 14,
 			RangeStart=0,
 			RangeBeforeTarget=0.10,
 			RangeAfterTarget=0.10,
