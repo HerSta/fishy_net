@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../Hermans-Masters-Thesis"
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true
+	}
+}

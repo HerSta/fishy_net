@@ -22,26 +22,25 @@ I_y = 1080
 son_depth = 14
 cam_hfov = math.radians(92)
 son_fov = math.radians(7) #actually 7
-t_x = 0.2
+t_x = 0.21
 
 save_plots = False
 show_plots = False
 
 def create_img_label_path_dict(path):
-    img_names = [img for img in glob.glob(path + "*.jpg")]
-    img_labels = [lab for lab in glob.glob(path + "*.txt")]
+    img_names = [img for img in glob.glob(path + "/*.jpg")]
+    img_labels = [lab for lab in glob.glob(path + "/*.txt")]
     imgs_labels = dict(zip(img_names, img_labels))
     return imgs_labels
 
 def calculate_sonar_region():
 
     x_o = 2*(math.sin(cam_hfov / 2) *(son_depth)) / (math.sin((math.pi / 2) - (cam_hfov / 2)))
-    print(x_o)
     #y_0 = (I_y * x_o) / I_x
 
     R_s =  (math.sin(son_fov / 2) *(son_depth)) / (math.sin((math.pi / 2) - (son_fov / 2)))
 
-    img_ratio = img_height / img_width
+    #img_ratio = img_height / img_width
 
     #cam_rect_a = img_ratio * img_width
 
@@ -161,7 +160,7 @@ def sonar_region_center(offset):
     img_center_x = img_width // 2
     img_center_y = img_height // 2
 
-    sonar_center_x = img_center_x + offset
+    sonar_center_x = img_center_x #- offset
     sonar_center_y = img_center_y
 
     center = Point(sonar_center_x,sonar_center_y)
@@ -226,6 +225,30 @@ def correct_timestamp(timestamp):
 
     return utc_time
 
+def cfish_df():
+    """
+    Find number of fish within the sonar region and their timestamps
+    Creates a plot that shows the number of fish within the sonar region for a time period if specified globally.
+
+    Returns: 
+    ts - a timeseries containing all the detections made. Values are number of fish detected.
+    """
+
+    imgs_labels_paths = get_all_imgs()
+    
+    _, R_i_s, _, sonar_center = init_data()
+
+    timeseries = []
+    for _, label_path in imgs_labels_paths.items():
+        number_of_fish, timestamp = find_fish_in_sonar_region(label_path, R_i_s, sonar_center)
+        timeseries.append((timestamp, number_of_fish))
+    
+    zlst = list(zip(*timeseries))
+    ts = pd.Series(zlst[1], index=zlst[0], name="cfish")
+
+    df = pd.DataFrame(data=ts.values, index = ts.index)
+        
+    return df
 
 def cfish_ts():
     """
@@ -259,6 +282,16 @@ def sfish_ts(threshold_db, start, end):
     ts = ts.sort_values("Time")
     ts = ts[ts.index < end]
     ts = ts[ts.index > start] 
+
+
+    # there might be some wrong values in the dataset since EK80 is aids
+    ts = ts[ts["Depth"] < 20]
+    ts = ts[ts["Depth"] > -1]
+
+
+    #if ts.
+
+
     return ts
 
 def init_data():
@@ -280,6 +313,22 @@ def init_data():
 
     return imgs_labels_paths, R_i_s, t_i_x, sonar_center
 
+
+def get_imgs_from_day(day):
+    img_path = "data/imgs/" + day
+    return create_img_label_path_dict(img_path)
+
+def get_all_imgs():
+    day1 = "20190303"
+    day2 = "20190304"
+    day3 = "20190305"
+
+    d = get_imgs_from_day(day1)
+    d.update(get_imgs_from_day(day2))
+    d.update(get_imgs_from_day(day3))
+    return d
+
+
 def compare_cfish_sfish(threshold_db, s_start, s_end, compare_start, compare_end):
     cfish = cfish_ts()
     sfish = sfish_ts(threshold_db, s_start, s_end)
@@ -298,7 +347,7 @@ def compare_cfish_sfish(threshold_db, s_start, s_end, compare_start, compare_end
     # Remove duplicated timestamps that indicates several fish
     sfish = sfish.loc[~sfish.index.duplicated(keep="first")]
 
-    dets_time = shift(cfish, sfish,compare_start, compare_end, 1, 1, 30,30,) #shift sfish 1 hour backwards and 4 forwards
+    dets_time = shift(cfish, sfish,compare_start, compare_end, 1, 1, 120,120,) #shift sfish 1 hour backwards and 4 forwards
 
     get_common(cfish, sfish, compare_start, compare_end)
     return dets_time
@@ -337,7 +386,7 @@ def get_cfish_detections(time_start, time_end):
     cfish = cfish[cfish.index < time_end]
     cfish = cfish[cfish.index > time_start]
     cfish = cfish[cfish.values != 0]
-    print("Between " + time_start + " and " + time_end + ", " + str(len(cfish)) + " fish was found in the optical data.")
+    print("Between " + time_start + " and " + time_end + ", " + str(len(cfish)) + " fish were found in the optical data.")
     return len(cfish)
 
 def get_common(ts1, ts2, time_start, time_end):
@@ -364,7 +413,7 @@ def shift(ts1, ts2, compare_start, compare_end, hours_forward, hours_backward, s
 
 def shift_seconds(ts1, ts2, compare_start, compare_end, seconds_backward, seconds_forward, at_hour):
     """
-    Returns a list of tuples at the form (seconds shifted, number of detections)
+    Returns a list of tuples at the form (seconds shifted, number of detections). ts1 is cfish
     """
     det_list = []
     for s in range(-seconds_backward, seconds_forward + 1):
@@ -397,24 +446,29 @@ def main():
 
     threshold_db = 70
 
-    s_start = "2019-03-03 07:00:00"
+    s_start = "2019-03-03 08:00:00"
     s_end = "2019-03-03 17:00:00"
 
-
     cfish = cfish_ts()
-    #sfish = sfish_ts(threshold_db, s_start, s_end)
-    #interest_start = "2019-03-03 09:40:00"
-    #interest_end = "2019-03-03 11:00:00"
-    ##common = compare_no_shift(threshold_db, s_start, s_end, discard, interest_start, interest_end)
-
-    #common = compare_cfish_sfish(threshold_db, s_start, s_end, interest_start, interest_end)
-    #cfish_n = get_cfish_detections(interest_start, interest_end)
+    sfish = sfish_ts(threshold_db, s_start, s_end)
+    interest_start = "2019-03-03 09:40:00"
+    interest_end = "2019-03-03 10:00:00"
     
-    #visualizer.plot_shifted_commons(common,cfish_n, threshold_db, show=True, save=False)
+
+
+    #sfish = sfish.loc[~sfish.index.duplicated(keep="first")]
+    #_,_, com = get_common(cfish, sfish, interest_start, interest_end)
+    #com = com[com["cfish"] >= 1]
+    #print(len(com))
+ 
+    common = compare_cfish_sfish(threshold_db, s_start, s_end, interest_start, interest_end)
+    fish_n = get_cfish_detections(interest_start, interest_end)
+    
+    visualizer.plot_shifted_commons(common, fish_n, threshold_db, show=True, save=False)
 
     #visualizer.plot_sfish(sfish, show=True, save=True)
 
-    visualizer.plot_cfish(cfish, show=True, save=True)
+    #visualizer.plot_cfish(cfish, show=True, save=True)
 
     #sfish_ts()
 
@@ -432,5 +486,5 @@ def main():
 
     print("Done!")
 
-
-main()
+if __name__ == "__main__":
+    main()

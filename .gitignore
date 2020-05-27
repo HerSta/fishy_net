@@ -1,8 +1,11 @@
 # ignore all weights file as they are enormous
 *.weights
 
+*.csv
+*.bin
 
-
+*/venv/*
+*cache*
 
 # ignore all data as there are too many images
 darknet/data/*
@@ -10,6 +13,9 @@ darknet/data/*
 
 # Ignore data
 data/
-
+data/*
+*/data/*
 */imgs/*
 imgs/*
+
+*test*

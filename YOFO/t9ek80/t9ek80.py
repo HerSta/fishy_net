@@ -486,9 +486,10 @@ class t9ek80:
                     if self.itypeSize > 0:
                         tmp = unpack("<Q"+self.mtypeName,self.finale_data[0:10])
                         try:
-                            timenow = datetime.datetime.utcfromtimestamp((tmp[0]/10000000)- 11644473600).strftime('%Y-%m-%dT%H:%M:%SZ')
+                            timenow = datetime.datetime.utcfromtimestamp((tmp[0]/10000000.0)- 11644473600.0).strftime('%Y-%m-%dT%H:%M:%SZ')
                         except:
-                            timenow = ""
+                            timenow = None
+
                         
                         self.finale_data = self.finale_data[10:]
                         Payload = []
