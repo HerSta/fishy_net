@@ -156,7 +156,7 @@ def plot_sfish_freq(sfish, show=True, save=False):
 
     #QUESTION: how does the frequency match the frequency response?
     plt.clf()
-    frequencies = np.linspace(185, 255, len(sfish.uncompensatedFrequencyResponse))
+    frequencies = np.linspace(185, 255, len(sfish.compensatedFrequencyResponse))
     plt.plot(frequencies, sfish.compensatedFrequencyResponse)
     plt.title("Time: " + str(sfish.time))
     plt.ylabel("Strength (dB)")

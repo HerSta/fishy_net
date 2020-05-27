@@ -15,7 +15,10 @@ import StructEchoTraceWBT
 import pickle
 
 startime = ""
-filename = ""
+filename_csv = ""
+filename_bin = ""
+csv = True
+binary = True
 
 class ek80(t9ek80.t9ek80):
     
@@ -33,19 +36,19 @@ class ek80(t9ek80.t9ek80):
         try:
             dt_timenow = datetime.strptime(timenow, "%Y-%m-%dT%H:%M:%SZ")
         except:
-            dt_timenow = "null"
+            dt_timenow = None
 
-        if mtype == "SingleTarget" or mtype == "SingleTargetChirp":
+        if mtype == "SingleTarget" or mtype == "SingleTargetChirp" and dt_timenow != None:
             for element in Payload:
                 print("New message arrived! Writing to file")
                 if csv:
-                    with open(filename, "a") as f:
+                    with open(filename_csv, "a") as f:
                         f.write(str(dt_timenow) + ',' +  str(element[0]) + "," + str(element[3]) + "," + str(element[4]) + "," + str(element[5]))
                         f.write("\n")
-                else:
+                if binary:
                     echotrace = StructEchoTraceWBT.StructEchoTraceWBT(dt_timenow)
                     echotrace.populate(element)
-                    with open(filename, "ab") as fp: #b is for binary mode
+                    with open(filename_bin, "ab") as fp: #b is for binary mode
                         pickle.dump(echotrace, fp)
         if dt_timenow == startime:
             print("DONE")
@@ -64,17 +67,23 @@ class ek80(t9ek80.t9ek80):
 
 
 def main():
-    global filename
+    global filename_csv
+    global filename_bin
+    global csv 
+    global binary 
+
     csv = True
+    binary = True
+    threshold = 100
 
     print("Waiting for messages.")
     if csv:
-        filename = "fish_singletargets_70db_v2.csv"
-        with open(filename, "w") as file:
+        filename_csv = "fish_singletargets_0305_" + str(threshold) + "db_slow.csv"
+        with open(filename_csv, "w") as file:
             file.write("Time,Depth,Along,Athwart,Sa")
             file.write("\n")
-    else:
-        filename = "fish_singletargets_60db_testlist.bin"
+    if binary:
+        filename_bin = "fish_singletargets_0305_" + str(threshold) + "db_slow.bin"
     run = ek80(sys.argv)
     run.main()
 

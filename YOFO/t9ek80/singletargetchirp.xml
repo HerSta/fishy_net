@@ -14,7 +14,7 @@
 		
 		<type>SingleTargetChirp</type>
 		<req>TSDetectionChirp,ChannelID=?,
-			MinTSValue=-70,
+			MinTSValue=-100,
 			LayerType=Surface,
 			Range = 14,
 			RangeStart=0,
