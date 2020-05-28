@@ -74,4 +74,5 @@ def main():
     #print("hi")
 
 
-main()
+if __name__=="__main__":
+    main()

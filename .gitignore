@@ -5,6 +5,11 @@
 *.bin
 
 */venv/*
+darknet
+darknet/*
+project_thesis
+project_thesis/*
+*/__pycache__/*
 
 
 # ignore all data as there are too many images
