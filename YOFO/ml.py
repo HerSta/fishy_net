@@ -1,6 +1,7 @@
 from numpy import loadtxt
 from keras.models import Sequential
 from keras.layers import Dense
+import matplotlib.pyplot as plt
 import tensorflow as tf
 import fish_finder
 import numpy as np
@@ -16,8 +17,14 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import normalize
+from sklearn.metrics import plot_confusion_matrix
+from sklearn.metrics import confusion_matrix
 from tensorflow.keras import initializers
 from numpy.random import seed
+from sklearn.metrics import ConfusionMatrixDisplay
+from keras.utils import to_categorical
+from sklearn.preprocessing import scale
+#import sklearn.metrics
 
 def create_dataset(filenames, threshold, num_days, clean=True):
 
@@ -73,7 +80,7 @@ def get_dataset(filename):
 
     print(len(dataset))
 
-    d = dataset[(dataset[6] == 0) & (dataset.index % 10 != 0)].index
+    d = dataset[(dataset[6] == 0) & (dataset.index % 15 != 0)].index
     dataset = dataset.drop(d)
 
     print(len(dataset))
@@ -102,10 +109,11 @@ def get_dataset(filename):
 def create_NN():
     # define the keras model
     model = Sequential()
-    model.add(Dense(10040, input_dim=1004, activation='relu'))
-    model.add(Dense(9000, activation="relu"))
-    model.add(Dense(7000, activation="relu"))
-    model.add(Dense(5000, activation="relu"))
+    model.add(Dense(1024, input_dim=1004, activation='sigmoid'))
+    model.add(Dense(512, activation="relu"))
+    model.add(Dense(256, activation="relu"))
+    model.add(Dense(128, activation="relu"))
+    model.add(Dense(64, activation="relu"))
     model.add(Dense(32, activation="relu"))
     model.add(Dense(16, activation="relu"))
     model.add(Dense(8, activation="relu"))
@@ -115,59 +123,67 @@ def create_NN():
 
 def garbage(model, x, y):
     #seed(1) # this is a numpy seed. Keras relies on numpy for seeding weights so this makes the weights the same every time
-    x = normalize(x, axis=0, norm="l2") #axis 0 is per column, axis 1 is per row, l2 is euclidean norm
+    x = scale(x, axis=0, with_mean=True, with_std=True) #axis 0 is per column, axis 1 is per row,
     y = np.array(y).reshape(-1,1)
 
 
-    #x = x[0:1000]
-    #y = y[0:1000]
+    x = x[:,0:1004]
+    y = y[:,:]
 
-    #x = x.T
-    #y = y.T
 
-    encoder = OneHotEncoder()
-    encoder.fit(y)
+    y = to_categorical(y)
 
-    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size = 0.2, shuffle=True)
+    #y = [np.array([1,0]) if z == 1 else np.array([0,1]) for z in y]
+    #encoder = OneHotEncoder()
+    #encoder.fit(y)
+    #y = encoder.transform(y)
+
+    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size = 0.2, shuffle=True, random_state=0)
 
 
     # about y
     # 1 - fish
     # 0 - not fish
 
-    y_train = encoder.transform(y_train).toarray()
-    y_val = encoder.transform(y_val).toarray()
-
-    #y = [-1 if z == 0 else 1 for z in y]
-
-
     # compile the keras model
-    opt = SGD(lr=10, momentum=0.9)
-    model.compile(loss='binary_crossentropy', optimizer="adam")#, metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.Precision(thresholds=0.5, class_id=1), tf.keras.metrics.Recall(name="Recall", thresholds=0.5, class_id=1)])
+    #opt = SGD(lr=10, momentum=0.9)
+    model.compile(loss='binary_crossentropy', optimizer="adam", metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.Precision(thresholds=0.5, class_id=1), tf.keras.metrics.Recall(name="Recall", thresholds=0.5, class_id=1)])
 
     # fit the keras model on the dataset
 
-    model.fit(x_train, y_train, epochs=300, batch_size=1000, validation_data=(x_val,y_val), shuffle=True)
+    clf = model.fit(x_train, y_train, epochs=1000, batch_size=3000, shuffle=False, validation_data=(x_val, y_val))
 
-    # evaluate the keras model
-    #loss, accuracy,  precision, recall = model.evaluate(x_val, y_val)
-    #print('Accuracy: %.3f, Precision: %.3f, Recall: %.3f' % (accuracy*100, precision*100, recall*100))
 
     predictions_train = model.predict_classes(x_train)
     predictions_val   = model.predict_classes(x_val)
 
-    print("===========TRAINING METRICS========")
-    report_train = classification_report(encoder.inverse_transform(y_train),predictions_train)
-    print(report_train)
-    con_mat_train = tf.math.confusion_matrix(encoder.inverse_transform(y_train), predictions_train)
-    print(con_mat_train.numpy())
-    print("===========VALIDATION METRICS========")
-    report_val = classification_report(encoder.inverse_transform(y_val),predictions_val)
-    print(report_val)
-    con_mat_val = tf.math.confusion_matrix(encoder.inverse_transform(y_val), predictions_val)
-    print(con_mat_val.numpy())
+   # print("===========TRAINING METRICS========")
+   # report_train = classification_report(encoder.inverse_transform(y_train),predictions_train)
+   # print(report_train)
+   # con_mat_train = tf.math.confusion_matrix(encoder.inverse_transform(y_train), predictions_train)
+   # print(con_mat_train.numpy())
+   # print("===========VALIDATION METRICS========")
+   # report_val = classification_report(encoder.inverse_transform(y_val),predictions_val)
+   # print(report_val)
+   # con_mat_val = tf.math.confusion_matrix(encoder.inverse_transform(y_val), predictions_val)
+   # print(con_mat_val.numpy())
 
 
+    #y_train = encoder.inverse_transform(y_train)
+    #y_val = encoder.inverse_transform(y_val)
+
+    #reverse one hot encoding
+    y_train = np.argmax(y_train, axis=1)
+    y_val = np.argmax(y_val, axis=1)
+
+    #confusion
+    cm_train = confusion_matrix(y_train, predictions_train)
+    disp_train = ConfusionMatrixDisplay(confusion_matrix=cm_train, display_labels=["No fish", "Fish"])
+    disp_train = disp_train.plot(cmap=plt.cm.Blues)
+    cm_val= confusion_matrix(y_val, predictions_val)
+    disp_val = ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=["No fish", "Fish"])
+    disp_val = disp_val.plot(cmap=plt.cm.Blues)
+    plt.show()
 
 
     return "hi"
