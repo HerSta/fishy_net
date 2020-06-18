@@ -1,13 +1,5 @@
 # fishy_net
 
-
-## This repo consists of 3 main programs used during pre-project:
-
-* Darknet fork - for running detections and classifications on images
-* Labelimg fork - for labeling and verifying that images has been labeled correctly
-* Data_generator - for splitting data and enabling darknet to process data
-
-
 ## For the masters thesis YOFO is the place to be
 
 ## When pseudo-labeling with darknet:
