@@ -10,7 +10,7 @@ darknet/*
 project_thesis
 project_thesis/*
 */__pycache__/*
-
+*pyc
 
 # ignore all data as there are too many images
 darknet/data/*
@@ -24,3 +24,6 @@ data/*
 imgs/*
 
 *test*
+
+
+*.png

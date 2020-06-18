@@ -24,6 +24,8 @@ from numpy.random import seed
 from sklearn.metrics import ConfusionMatrixDisplay
 from keras.utils import to_categorical
 from sklearn.preprocessing import scale
+from sklearn.decomposition import PCA
+import json
 #import sklearn.metrics
 
 def create_dataset(filenames, threshold, num_days, clean=True):
@@ -75,16 +77,16 @@ def create_dataset(filenames, threshold, num_days, clean=True):
 
 
 
-def get_dataset(filename):
+def get_dataset(filename, filter_TN=True):
     dataset = pd.read_csv(filename, delimiter=",", header=None)
 
-    print(len(dataset))
 
-    d = dataset[(dataset[6] == 0) & (dataset.index % 15 != 0)].index
-    dataset = dataset.drop(d)
+    if filter_TN:
+        d = dataset[(dataset[6] == 0) & (dataset.index % 15 != 0)].index
+        dataset = dataset.drop(d)
 
-    print(len(dataset))
-    #print(dataset)
+    print("Number of datapoints: " + str(len(dataset)))
+
 
     time = dataset[0]
     depth = dataset[1]
@@ -106,10 +108,10 @@ def get_dataset(filename):
     y = dataset[6].values
     return x.transpose(), y
 
-def create_NN():
-    # define the keras model
+def create_NN(num_outputs, input_dim, final_af):
+    """ num_outputs should be either 1 or 2. """
     model = Sequential()
-    model.add(Dense(1024, input_dim=1004, activation='sigmoid'))
+    model.add(Dense(1024, input_dim=input_dim, activation='sigmoid'))
     model.add(Dense(512, activation="relu"))
     model.add(Dense(256, activation="relu"))
     model.add(Dense(128, activation="relu"))
@@ -118,38 +120,41 @@ def create_NN():
     model.add(Dense(16, activation="relu"))
     model.add(Dense(8, activation="relu"))
     model.add(Dense(4, activation='relu'))
-    model.add(Dense(2, activation='sigmoid'))
+    model.add(Dense(num_outputs, activation=final_af))
     return model
 
-def garbage(model, x, y):
+
+
+
+def pre_processing(x, y, pca=True, pca_components=10):
+    """ Performs z-scoring of x and performs pca on frequency components"""
     #seed(1) # this is a numpy seed. Keras relies on numpy for seeding weights so this makes the weights the same every time
     x = scale(x, axis=0, with_mean=True, with_std=True) #axis 0 is per column, axis 1 is per row,
     y = np.array(y).reshape(-1,1)
 
 
-    x = x[:,0:1004]
-    y = y[:,:]
+    x_tmp = x[:,0:4]
 
+    if pca and pca_components != 1000:
+        pca = PCA(n_components=pca_components)
+        x_reduced = pca.fit_transform(x[:,4:1004])
+        var_r = pca.explained_variance_ratio_
 
-    y = to_categorical(y)
+        x = np.concatenate((x_tmp, x_reduced), axis=1)
 
-    #y = [np.array([1,0]) if z == 1 else np.array([0,1]) for z in y]
-    #encoder = OneHotEncoder()
-    #encoder.fit(y)
-    #y = encoder.transform(y)
+    return x, y
+
+def train_model(model, x, y, num_outputs):
+
+    if num_outputs == 2:
+        y = to_categorical(y)
+
 
     x_train, x_val, y_train, y_val = train_test_split(x, y, test_size = 0.2, shuffle=True, random_state=0)
 
 
-    # about y
-    # 1 - fish
-    # 0 - not fish
+    model.compile(loss='binary_crossentropy', optimizer="adam", metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.Precision(thresholds=0.5, class_id=(num_outputs -1 )), tf.keras.metrics.Recall(name="Recall", thresholds=0.5, class_id=(num_outputs -1 ))])
 
-    # compile the keras model
-    #opt = SGD(lr=10, momentum=0.9)
-    model.compile(loss='binary_crossentropy', optimizer="adam", metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.Precision(thresholds=0.5, class_id=1), tf.keras.metrics.Recall(name="Recall", thresholds=0.5, class_id=1)])
-
-    # fit the keras model on the dataset
 
     clf = model.fit(x_train, y_train, epochs=1000, batch_size=3000, shuffle=False, validation_data=(x_val, y_val))
 
@@ -157,40 +162,54 @@ def garbage(model, x, y):
     predictions_train = model.predict_classes(x_train)
     predictions_val   = model.predict_classes(x_val)
 
-   # print("===========TRAINING METRICS========")
-   # report_train = classification_report(encoder.inverse_transform(y_train),predictions_train)
-   # print(report_train)
-   # con_mat_train = tf.math.confusion_matrix(encoder.inverse_transform(y_train), predictions_train)
-   # print(con_mat_train.numpy())
-   # print("===========VALIDATION METRICS========")
-   # report_val = classification_report(encoder.inverse_transform(y_val),predictions_val)
-   # print(report_val)
-   # con_mat_val = tf.math.confusion_matrix(encoder.inverse_transform(y_val), predictions_val)
-   # print(con_mat_val.numpy())
+    return y_train, y_val, predictions_train, predictions_val
 
 
-    #y_train = encoder.inverse_transform(y_train)
-    #y_val = encoder.inverse_transform(y_val)
+def evaluate_model(y_train, y_val, pred_train, pred_val, pca_components, num_outputs, iteration, final_af):
+    """ Returns the report from the validation data """
+     #reverse one hot encoding
+    if num_outputs == 2:
+        y_train = np.argmax(y_train, axis=1)
+        y_val = np.argmax(y_val, axis=1)
 
-    #reverse one hot encoding
-    y_train = np.argmax(y_train, axis=1)
-    y_val = np.argmax(y_val, axis=1)
+    print("===========TRAINING METRICS========")
+    report_train = classification_report(y_train,pred_train, output_dict=True)
+    print(report_train)
+    print("===========VALIDATION METRICS========")
+    report_val = classification_report(y_val,pred_val, output_dict=True)
+    print(report_val)
 
+
+
+
+    number_datapoints = len(y_train[0]) + len(y_val[0])
     #confusion
-    cm_train = confusion_matrix(y_train, predictions_train)
+    cm_train = confusion_matrix(y_train, pred_train)
     disp_train = ConfusionMatrixDisplay(confusion_matrix=cm_train, display_labels=["No fish", "Fish"])
     disp_train = disp_train.plot(cmap=plt.cm.Blues)
-    cm_val= confusion_matrix(y_val, predictions_val)
+    plt.savefig(fname="figures/conf_pca" + str(pca_components) + "_train_num_out_" + str(number_datapoints) + "outputs" + str(num_outputs) + "i"+ str(iteration) + ".png")
+
+
+    cm_val= confusion_matrix(y_val, pred_val)
     disp_val = ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=["No fish", "Fish"])
     disp_val = disp_val.plot(cmap=plt.cm.Blues)
-    plt.show()
+    plt.savefig(fname="figures/conf_pca" + str(pca_components) + "_val_num_out_" + str(number_datapoints) + "outputs" + str(num_outputs) +  "i"+ str(iteration)+ final_af + ".png")
 
 
-    return "hi"
+
+
+    with open("results/training/conf_pca" + str(pca_components) + "_val_num_out_" + str(number_datapoints) + "outputs" + str(num_outputs) +  "i"+ str(iteration)+ final_af + ".json", "w") as f:
+        json.dump(report_val, f)
+    #plt.show()
+
+    return report_val
 
 
 def main():
+    pca_components = 2
     threshold = 100
+    final_af = "softmax"
+    num_outputs = 1     
     #filenames = ["data/sonar_processed/fish_singletargets_0303_" + str(threshold) + "db_slow.bin",
     #             "data/sonar_processed/fish_singletargets_0304_" + str(threshold) + "db_slow.bin",
     #             "data/sonar_processed/fish_singletargets_0305_" + str(threshold) + "db_slow.bin"]
@@ -198,11 +217,27 @@ def main():
 
     dataset_file = "data/training_data/fish_3days_100db.csv"
 
-    x, y = get_dataset(dataset_file)
+    x, y = get_dataset(dataset_file, filter_TN=True)
+    x, y = pre_processing(x, y, pca=True, pca_components=pca_components)
 
-    model = create_NN()
+    input_dim = 4 + pca_components
 
-    garbage(model, x, y)
+
+
+    model = create_NN(num_outputs, input_dim, final_af)
+    f1_max = 0
+    iterator = 0
+    for i in range(0,10):
+        y_train, y_val, pred_train, pred_val = train_model(model, x, y, num_outputs)
+
+        valuation = evaluate_model(y_train, y_val, pred_train, pred_val, pca_components, num_outputs, i, final_af)
+
+        f1 = valuation["1"]["f1-score"]
+        if f1 > f1_max:
+            f1_max = f1
+            iterator = i
+
+    print("Best f1-score (%f) was achieved at iteration: %i" % (f1_max, iterator))
 
 
 

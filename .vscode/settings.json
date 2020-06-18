@@ -1,4 +1,4 @@
 {
-    "python.pythonPath": "YOFO/venv/bin/python3.7",
+    "python.pythonPath": "/home/arm/.virtualenvs/fishyenv/bin/python",
     "git.ignoreLimitWarning": true,
 }
