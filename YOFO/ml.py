@@ -77,7 +77,7 @@ def create_dataset(filenames, threshold, num_days, clean=True):
 
 
 
-def get_dataset(filename, filter_TN=True):
+def get_dataset(filename, with_sa, filter_TN=True):
     dataset = pd.read_csv(filename, delimiter=",", header=None)
 
 
@@ -102,7 +102,10 @@ def get_dataset(filename, filter_TN=True):
     freq = np.array([i for i in freq])
     freq = freq.transpose()
 
-    x = np.array([depth, alongshipangle, athwartshipangle, sa])
+    if with_sa:
+        x = np.array([depth, alongshipangle, athwartshipangle, sa])
+    else:
+        x = np.array([depth, alongshipangle, athwartshipangle])
     x = np.append(x, freq, axis=0)
 
     y = dataset[6].values
@@ -126,18 +129,18 @@ def create_NN(num_outputs, input_dim, final_af):
 
 
 
-def pre_processing(x, y, pca=True, pca_components=10):
+def pre_processing(x, y, with_sa, pca=True, pca_components=10):
     """ Performs z-scoring of x and performs pca on frequency components"""
     #seed(1) # this is a numpy seed. Keras relies on numpy for seeding weights so this makes the weights the same every time
     x = scale(x, axis=0, with_mean=True, with_std=True) #axis 0 is per column, axis 1 is per row,
     y = np.array(y).reshape(-1,1)
 
 
-    x_tmp = x[:,0:4]
 
     if pca and pca_components != 1000:
+        x_tmp = x[:,0:(3 + with_sa)]
         pca = PCA(n_components=pca_components)
-        x_reduced = pca.fit_transform(x[:,4:1004])
+        x_reduced = pca.fit_transform(x[:,(3+ with_sa):(1000 + 3 + with_sa)])
         var_r = pca.explained_variance_ratio_
 
         x = np.concatenate((x_tmp, x_reduced), axis=1)
@@ -165,12 +168,12 @@ def train_model(model, x, y, num_outputs):
     return y_train, y_val, predictions_train, predictions_val
 
 
-def evaluate_model(y_train, y_val, pred_train, pred_val, pca_components, num_outputs, iteration, final_af):
+def evaluate_model(y_train, y_val, pred_train, pred_val, pca_components, num_outputs, iteration, final_af, with_sa):
     """ Returns the report from the validation data """
      #reverse one hot encoding
     if num_outputs == 2:
-        y_train = np.argmax(y_train, axis=1)
-        y_val = np.argmax(y_val, axis=1)
+        y_train = np.argmax(y_train, axis=1).reshape(1,-1)[0]
+        y_val = np.argmax(y_val, axis=1).reshape(1,-1)[0]
 
     print("===========TRAINING METRICS========")
     report_train = classification_report(y_train,pred_train, output_dict=True)
@@ -182,7 +185,7 @@ def evaluate_model(y_train, y_val, pred_train, pred_val, pca_components, num_out
 
 
 
-    number_datapoints = len(y_train[0]) + len(y_val[0])
+    number_datapoints = len(y_train) + len(y_val)
     #confusion
     cm_train = confusion_matrix(y_train, pred_train)
     disp_train = ConfusionMatrixDisplay(confusion_matrix=cm_train, display_labels=["No fish", "Fish"])
@@ -193,23 +196,27 @@ def evaluate_model(y_train, y_val, pred_train, pred_val, pca_components, num_out
     cm_val= confusion_matrix(y_val, pred_val)
     disp_val = ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=["No fish", "Fish"])
     disp_val = disp_val.plot(cmap=plt.cm.Blues)
-    plt.savefig(fname="figures/conf_pca" + str(pca_components) + "_val_num_out_" + str(number_datapoints) + "outputs" + str(num_outputs) +  "i"+ str(iteration)+ final_af + ".png")
+    plt.savefig(fname="figures/conf_pca" + str(pca_components) + "_val_num_out_" + str(number_datapoints) + "outputs" + str(num_outputs) +  "i"+ str(iteration)+ final_af  + "sa_" + str(with_sa)+ ".png")
 
 
 
 
-    with open("results/training/conf_pca" + str(pca_components) + "_val_num_out_" + str(number_datapoints) + "outputs" + str(num_outputs) +  "i"+ str(iteration)+ final_af + ".json", "w") as f:
+    with open("results/training/conf_pca" + str(pca_components) + "_val_num_out_" + str(number_datapoints) + "outputs" + str(num_outputs) +  "i"+ str(iteration)+ final_af + "sa_" + str(with_sa) + ".json", "w") as f:
         json.dump(report_val, f)
     #plt.show()
+
+    with open("results/training/conf_pca" + str(pca_components) + "_train_num_out_" + str(number_datapoints) + "outputs" + str(num_outputs) +  "i"+ str(iteration)+ final_af + "sa_" + str(with_sa) + ".json", "w") as f:
+        json.dump(report_train, f)
 
     return report_val
 
 
 def main():
-    pca_components = 2
+    pca_components = 1000
     threshold = 100
     final_af = "softmax"
-    num_outputs = 1     
+    num_outputs = 2     
+    with_sa = 1
     #filenames = ["data/sonar_processed/fish_singletargets_0303_" + str(threshold) + "db_slow.bin",
     #             "data/sonar_processed/fish_singletargets_0304_" + str(threshold) + "db_slow.bin",
     #             "data/sonar_processed/fish_singletargets_0305_" + str(threshold) + "db_slow.bin"]
@@ -217,10 +224,10 @@ def main():
 
     dataset_file = "data/training_data/fish_3days_100db.csv"
 
-    x, y = get_dataset(dataset_file, filter_TN=True)
-    x, y = pre_processing(x, y, pca=True, pca_components=pca_components)
+    x, y = get_dataset(dataset_file, with_sa, filter_TN=True )
+    x, y = pre_processing(x, y, with_sa, pca=True, pca_components=pca_components )
 
-    input_dim = 4 + pca_components
+    input_dim = 3 + with_sa + pca_components
 
 
 
@@ -230,7 +237,7 @@ def main():
     for i in range(0,10):
         y_train, y_val, pred_train, pred_val = train_model(model, x, y, num_outputs)
 
-        valuation = evaluate_model(y_train, y_val, pred_train, pred_val, pca_components, num_outputs, i, final_af)
+        valuation = evaluate_model(y_train, y_val, pred_train, pred_val, pca_components, num_outputs, i, final_af, with_sa)
 
         f1 = valuation["1"]["f1-score"]
         if f1 > f1_max:
